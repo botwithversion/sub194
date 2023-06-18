@@ -1,7 +1,7 @@
 {
-  "name": "your-bot-app",
+  "name": "Proxima Sub Bot",
   "description": "Telegram bot for managing subscriptions",
-  "repository": "https://github.com/your-username/your-repo",
+  "repository": "https://github.com/Fraggod/sub",
   "keywords": ["telegram", "bot"],
   "env": {
     "API_ID": {
@@ -27,7 +27,7 @@
     }
   ],
   "scripts": {
-    "start": "python your_bot_script.py"
+    "start": "main.py"
   },
   "formation": {
     "worker": {
