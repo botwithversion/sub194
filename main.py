@@ -25,13 +25,15 @@ async def start_command(event):
 
 @client.on(events.NewMessage(pattern='/profile'))
 async def profile_command(event):
-    user_id = event.sender_id
+    user_id = event.from_id
     has_subscription, days_left = check_subscription(user_id)
 
     if has_subscription:
-        await event.reply(f"You have {days_left} days left in your subscription.")
+        message = f"Your subscription is valid for {days_left} days."
     else:
-        await event.reply("Your subscription has expired or you are not a subscriber.")
+        message = "Your subscription has expired."
+
+    await event.respond(message)
 
 
 @client.on(events.NewMessage(pattern='/sub'))
@@ -71,7 +73,7 @@ def check_subscription(user_id):
 
 def is_owner(user_id):
     # Replace with your own logic to check if the user is the owner/approved user
-    approved_users = [123456789, 987654321]
+    approved_users = [5912161237, 1684703664]
     return user_id in approved_users
 
 
