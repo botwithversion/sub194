@@ -39,9 +39,7 @@ async def profile_command(event):
 # /sub command handler (for the bot owner)
 @client.on(events.NewMessage(pattern='/sub'))
 async def sub_command(event):
-    user_id = event.sender_id
-
-    if user_id == owner_id:
+    if event.sender_id == owner_id:
         command_args = event.raw_text.split()
         if len(command_args) == 3:
             recipient_id = event.reply_to_msg.sender_id
@@ -60,26 +58,3 @@ def check_subscription(user_id):
     cursor.execute("SELECT days, amount_paid FROM subscriptions WHERE user_id = %s;", (str(user_id),))
     result = cursor.fetchone()
 
-    if result is not None:
-        days_left, amount_paid = result
-        has_subscription = True
-    else:
-        days_left = 0
-        amount_paid = 0
-        has_subscription = False
-
-    return has_subscription, days_left
-
-
-# Function to store user subscription
-def store_subscription(user_id, days, amount_paid):
-    cursor.execute("INSERT INTO subscriptions (user_id, days, amount_paid) VALUES (%s, %s, %s);", (user_id, days, amount_paid))
-    conn.commit()
-
-# Register the command handlers
-client.add_event_handler(start_command, events.NewMessage(pattern='/start'))
-client.add_event_handler(profile_command, events.NewMessage(pattern='/profile'))
-client.add_event_handler(sub_command, events.NewMessage(pattern='/sub'))
-
-# Start the Telegram client
-client.run_until_disconnected()
