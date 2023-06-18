@@ -20,19 +20,5 @@
       "description": "Your PostgreSQL database URL",
       "required": true
     }
-  },
-  "buildpacks": [
-    {
-      "url": "heroku/python"
-    }
-  ],
-  "scripts": {
-    "start": "main.py"
-  },
-  "formation": {
-    "worker": {
-      "quantity": 1,
-      "size": "free"
-    }
   }
 }
