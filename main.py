@@ -43,13 +43,13 @@ async def sub_command(event):
     if event.sender_id == int(os.environ.get('BOT_OWNER_ID')):
         command_args = event.raw_text.split()
         if len(command_args) == 3:
-            user_id = event.reply_to_msg.sender_id
+            user_id = event.message.reply_to_msg.sender_id
             days = command_args[1]
             amount_paid = command_args[2]
 
-            store_subscription(user_id, days, amount_paid)
+            store_subscription(str(user_id), days, amount_paid)
 
-            message = f"{user_id} thanks for subscribing to our bot. Your plan is valid till {days} days. Your amount paid: {amount_paid}."
+            message = f"{user_id} thanks for subscribing to our bot. Your plan is valid for {days} days. Your amount paid: {amount_paid}."
             await event.respond(message)
 
 # Function to check user subscription
