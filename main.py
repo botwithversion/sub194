@@ -11,7 +11,7 @@ bot_token = os.environ.get('BOT_TOKEN')
 db_url = os.environ.get('DATABASE_URL')
 
 # Owner username
-owner_username = "tiny_pro"  # Replace with your own owner username
+owner_username = "your_owner_username"  # Replace with your own owner username
 
 # Initialize the Telegram client
 client = TelegramClient('bot', api_id, api_hash).start(bot_token=bot_token)
@@ -39,7 +39,8 @@ async def profile_command(event):
 # /sub command handler (for the bot owner)
 @client.on(events.NewMessage(pattern='/sub'))
 async def sub_command(event):
-    sender_username = await event.client.get_entity(event.sender_id).username
+    sender_entity = await event.client.get_input_entity(event.sender_id)
+    sender_username = sender_entity.username
 
     if sender_username and sender_username.lower() == owner_username.lower():
         command_args = event.raw_text.split()
