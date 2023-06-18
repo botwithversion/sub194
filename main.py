@@ -56,7 +56,6 @@ async def sub_command(event):
 # Function to check user subscription
 # Function to check user subscription
 def check_subscription(user_id):
-    user_id = user_id.user_id  # Extract the user ID from the PeerUser object
     cursor.execute("SELECT days, amount_paid FROM subscriptions WHERE user_id = %s;", (str(user_id),))
     result = cursor.fetchone()
 
