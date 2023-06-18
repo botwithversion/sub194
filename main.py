@@ -41,7 +41,7 @@ async def sub_command(event):
     if event.sender_id == int(os.environ.get('BOT_OWNER_ID')):
         command_args = event.raw_text.split()
         if len(command_args) == 3:
-            user_id = event.reply_to_msg_id
+            user_id = event.reply_to_msg.sender_id
             days = command_args[1]
             amount_paid = command_args[2]
 
