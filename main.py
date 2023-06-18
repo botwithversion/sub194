@@ -51,8 +51,9 @@ async def sub_command(event):
             await event.respond(message)
 
 # Function to check user subscription
+# Function to check user subscription
 def check_subscription(user_id):
-    cursor.execute("SELECT days, amount_paid FROM subscriptions WHERE user_id = %s;", (user_id,))
+    cursor.execute("SELECT days, amount_paid FROM subscriptions WHERE user_id = %s;", (str(user_id),))
     result = cursor.fetchone()
 
     if result is not None:
@@ -64,6 +65,7 @@ def check_subscription(user_id):
         has_subscription = False
 
     return has_subscription, days_left
+
 
 # Function to store user subscription
 def store_subscription(user_id, days, amount_paid):
