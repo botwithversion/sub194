@@ -24,16 +24,18 @@ async def start_command(event):
 
 # /profile command handler
 @client.on(events.NewMessage(pattern='/profile'))
+# Handler for /profile command
 async def profile_command(event):
-    user_id = event.from_id
+    user_id = event.sender_id
     has_subscription, days_left = check_subscription(user_id)
 
     if has_subscription:
-        message = f"Your subscription is valid for {days_left} days."
+        await event.respond(f"You have {days_left} days left in your subscription.")
     else:
-        message = "Your subscription has expired."
+        await event.respond("Your subscription has expired or you are not a subscriber.")
 
-    await event.respond(message)
+# Register the command handler
+client.add_event_handler(profile_command, events.NewMessage(pattern='/profile'))
 
 # /sub command handler (for the bot owner)
 @client.on(events.NewMessage(pattern='/sub'))
@@ -52,7 +54,9 @@ async def sub_command(event):
 
 # Function to check user subscription
 # Function to check user subscription
+# Function to check user subscription
 def check_subscription(user_id):
+    user_id = user_id.user_id  # Extract the user ID from the PeerUser object
     cursor.execute("SELECT days, amount_paid FROM subscriptions WHERE user_id = %s;", (str(user_id),))
     result = cursor.fetchone()
 
