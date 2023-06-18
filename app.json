@@ -1,0 +1,38 @@
+{
+  "name": "your-bot-app",
+  "description": "Telegram bot for managing subscriptions",
+  "repository": "https://github.com/your-username/your-repo",
+  "keywords": ["telegram", "bot"],
+  "env": {
+    "API_ID": {
+      "description": "Your Telegram API ID",
+      "required": true
+    },
+    "API_HASH": {
+      "description": "Your Telegram API hash",
+      "required": true
+    },
+    "BOT_TOKEN": {
+      "description": "Your Telegram bot token",
+      "required": true
+    },
+    "DATABASE_URL": {
+      "description": "Your PostgreSQL database URL",
+      "required": true
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ],
+  "scripts": {
+    "start": "python your_bot_script.py"
+  },
+  "formation": {
+    "worker": {
+      "quantity": 1,
+      "size": "free"
+    }
+  }
+}
