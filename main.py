@@ -38,7 +38,7 @@ async def profile_command(event):
 client.add_event_handler(profile_command, events.NewMessage(pattern='/profile'))
 
 # /sub command handler (for the bot owner)
-@client.on(events.NewMessage(pattern='/sub'))
+@client.on(events.NewMessage(pattern=r'/sub \d+ \d+'))
 async def sub_command(event):
     if event.sender_id == int(os.environ.get('BOT_OWNER_ID')):
         command_args = event.raw_text.split()
