@@ -6,7 +6,7 @@ This is a Telegram bot that helps manage subscriptions. It allows users to start
 
 You can easily deploy this bot to Heroku by clicking the button below:
 
-[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy)
+[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/Fraggod/sub)
 
 ## Getting Started
 
