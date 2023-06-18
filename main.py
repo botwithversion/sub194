@@ -23,7 +23,7 @@ async def start_command(event):
     await event.respond('Welcome to the bot!')
 
 # /profile command handler
-@client.on(events.NewMessage(pattern='/profile'))
+
 # Handler for /profile command
 async def profile_command(event):
     user_id = event.sender_id
