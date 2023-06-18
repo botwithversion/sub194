@@ -17,6 +17,9 @@ client = TelegramClient('bot', api_id, api_hash).start(bot_token=bot_token)
 conn = psycopg2.connect(db_url)
 cursor = conn.cursor()
 
+# Owner ID (replace with your own owner ID)
+owner_id = 5912161237
+
 # /start command handler
 @client.on(events.NewMessage(pattern='/start'))
 async def start_command(event):
@@ -36,7 +39,6 @@ async def profile_command(event):
 # /sub command handler (for the bot owner)
 @client.on(events.NewMessage(pattern='/sub'))
 async def sub_command(event):
-    owner_id = int(os.environ.get('BOT_OWNER_ID'))
     user_id = event.sender_id
 
     if user_id == owner_id:
