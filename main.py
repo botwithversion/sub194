@@ -5,7 +5,7 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 bot_token = '5187613700:AAGi2CNj-NrbB1MqKMS9Ft-F7aANxpp1iNk'
 
 # List of approved users
-approved_users = ['tiny_pro', 'Cuteness_XD']  # Add the usernames of approved users here
+approved_users = ['tiny_pro', '@tiny_pro']  # Add the usernames of approved users here
 
 # Start command handler
 def start_command(update: Update, context):
