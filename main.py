@@ -46,7 +46,7 @@ def paid_command(update: Update, context):
         elif first_name:
             output_message += f"First Name: {first_name}\n"
 
-        output_message += f"Amount: {payment_amount} USD"
+        output_message += f"Amount: {payment_amount} PD"
         context.bot.send_message(chat_id=update.effective_chat.id, text=output_message)
 
         # Log the output message
