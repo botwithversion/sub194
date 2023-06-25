@@ -13,26 +13,27 @@ def start_command(update: Update, context):
 
 # Paid command handler
 def paid_command(update: Update, context):
-    reply_message = update.message.reply_to_message
-    if reply_message is None:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="Please reply to a user's message to process the payment.")
-        return
-
-    user = reply_message.from_user
+    user = update.message.from_user
     user_id = user.id
-    message_text = update.message.text.strip().split()
+    payment_amount = None
 
-    if len(message_text) < 2:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="Please specify the payment amount.")
-        return
+    if len(update.message.text.split()) > 1:
+        payment_amount = update.message.text.split()[1]
 
-    payment_amount = ''.join(filter(str.isdigit, message_text[1]))  # Extract the payment amount
+    output_message = "THANKS FOR YOUR SUBSCRIPTION\n"
+    output_message += f"User id: {user_id}\n"
 
-    if user_id in approved_user_ids:
-        output_message = f"Customer - {user_id} has paid {payment_amount}."
-        context.bot.send_message(chat_id=update.effective_chat.id, text=output_message)
+    if user.username:
+        output_message += f"Username: @{user.username}\n"
     else:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
+        output_message += f"Username: {user.first_name}\n"
+
+    if payment_amount:
+        output_message += f"Amount: {payment_amount}"
+    else:
+        output_message += "Amount: Not specified"
+
+    context.bot.send_message(chat_id=update.effective_chat.id, text=output_message)
 
 # Create the Telegram bot
 bot = Bot(token=bot_token)
