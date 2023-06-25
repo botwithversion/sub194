@@ -1,16 +1,17 @@
+import os
 import logging
 import datetime
 from telegram import Bot, Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
 # Telegram bot token
-bot_token = 'YOUR_BOT_TOKEN'
+bot_token = os.environ.get('BOT_TOKEN')
 
 # Log group ID
-log_group_id = 'LOG_GROUP_ID'  # Replace with the ID of your log group
+log_group_id = os.environ.get('LOG_GROUP_ID')
 
 # List of approved user IDs
-approved_user_ids = [1234567890, 9876543210]  # Add the user IDs of approved users here
+approved_user_ids = [int(user_id) for user_id in os.environ.get('APPROVED_USER_IDS', '').split(',')]
 
 # Configure logging
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
