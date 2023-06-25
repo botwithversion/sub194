@@ -1,5 +1,4 @@
 telethon==1.23.0
 python-telegram-bot==13.8
-python-telegram-log==0.4.0
-python-dotenv==0.19.1
+
 
