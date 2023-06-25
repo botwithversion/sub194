@@ -1,20 +1,16 @@
 import logging
-import os
+import datetime
 from telegram import Bot, Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
 
 # Telegram bot token
-bot_token = os.getenv('BOT_TOKEN')
+bot_token = 'YOUR_BOT_TOKEN'
 
 # Log group ID
-log_group_id = os.getenv('LOG_GROUP_ID')
+log_group_id = 'LOG_GROUP_ID'  # Replace with the ID of your log group
 
-# Approved user IDs
-approved_user_ids = list(map(int, os.getenv('APPROVED_USER_IDS').split(',')))
+# List of approved user IDs
+approved_user_ids = [1234567890, 9876543210]  # Add the user IDs of approved users here
 
 # Configure logging
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -84,30 +80,43 @@ def profile_command(update: Update, context):
 
     replied_user_id = update.message.reply_to_message.from_user.id
 
-    if replied_user_id in approved_user_ids:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="The replied user has an active subscription.")
+    # Check if the user is an approved user
+    if update.message.from_user.id in approved_user_ids:
+        # Check if the user has an active subscription
+        active_subscription = False
+        for record in logger.handlers[0].buffer:
+            if str(replied_user_id) in record:
+                active_subscription = True
+                break
+
+        if active_subscription:
+            context.bot.send_message(chat_id=update.effective_chat.id, text="The user has an active subscription.")
+        else:
+            context.bot.send_message(chat_id=update.effective_chat.id, text="The user does not have an active subscription.")
     else:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="The replied user does not have an active subscription.")
+        context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
 # Check data command handler
 def check_data_command(update: Update, context):
+    # Check if the user is an approved user
     if update.message.from_user.id in approved_user_ids:
-        for user_id, data in subscriptions.items():
-            output_message = f"User ID: {user_id}\n"
-            output_message += f"Amount: {data['amount']} USD\n"
-            output_message += f"Subscription Start: {data['start_date']}\n"
-            output_message += f"Valid Till: {data['expire_date']}\n"
-            context.bot.send_message(chat_id=update.effective_chat.id, text=output_message)
+        data = ''
+        for record in logger.handlers[0].buffer:
+            data += record + '\n'
+        if data:
+            context.bot.send_message(chat_id=update.effective_chat.id, text=data)
+        else:
+            context.bot.send_message(chat_id=update.effective_chat.id, text="No data available.")
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
 # Error handler
-def error_handler(update: Update, context):
+def error(update: Update, context):
     logger.warning(f"Update {update} caused error {context.error}")
 
 def main():
-    # Create the Updater and pass the bot token
-    updater = Updater(token=bot_token, use_context=True)
+    # Create the Telegram Updater and pass in the bot's token
+    updater = Updater(bot_token)
 
     # Get the dispatcher to register handlers
     dispatcher = updater.dispatcher
@@ -119,12 +128,12 @@ def main():
     dispatcher.add_handler(CommandHandler("check_data", check_data_command))
 
     # Register error handler
-    dispatcher.add_error_handler(error_handler)
+    dispatcher.add_error_handler(error)
 
     # Start the bot
     updater.start_polling()
 
-    # Run the bot until you press Ctrl-C
+    # Run the bot until Ctrl-C is pressed
     updater.idle()
 
 if __name__ == '__main__':
