@@ -13,27 +13,35 @@ def start_command(update: Update, context):
 
 # Paid command handler
 def paid_command(update: Update, context):
-    user = update.message.from_user
-    user_id = user.id
-    payment_amount = None
+    if update.message.reply_to_message is None:
+        context.bot.send_message(chat_id=update.effective_chat.id, text="Please reply to a user's message to process the payment.")
+        return
 
-    if len(update.message.text.split()) > 1:
-        payment_amount = update.message.text.split()[1]
+    replied_user = update.message.reply_to_message.from_user
+    user_id = replied_user.id
+    username = replied_user.username
+    first_name = replied_user.first_name
+    message_text = update.message.text.strip().split()
 
-    output_message = "THANKS FOR YOUR SUBSCRIPTION\n"
-    output_message += f"User id: {user_id}\n"
+    if len(message_text) < 2:
+        context.bot.send_message(chat_id=update.effective_chat.id, text="Please specify the payment amount.")
+        return
 
-    if user.username:
-        output_message += f"Username: @{user.username}\n"
-    else:
-        output_message += f"Username: {user.first_name}\n"
+    payment_amount = ''.join(filter(str.isdigit, message_text[1]))  # Extract the payment amount
 
-    if payment_amount:
+    if update.message.from_user.id in approved_user_ids:
+        output_message = "THANKS FOR YOUR SUBSCRIPTION\n"
+        output_message += f"User id: {user_id}\n"
+
+        if username:
+            output_message += f"Username: @{username}\n"
+        else:
+            output_message += f"First Name: {first_name}\n"
+
         output_message += f"Amount: {payment_amount}"
+        context.bot.send_message(chat_id=update.effective_chat.id, text=output_message)
     else:
-        output_message += "Amount: Not specified"
-
-    context.bot.send_message(chat_id=update.effective_chat.id, text=output_message)
+        context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
 # Create the Telegram bot
 bot = Bot(token=bot_token)
