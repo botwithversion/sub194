@@ -1,16 +1,13 @@
 import logging
 import datetime
+import os
 from telegram import Bot, Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
-# Telegram bot token
-bot_token = 'YOUR_BOT_TOKEN'
-
-# Log group ID
-log_group_id = 'LOG_GROUP_ID'  # Replace with the ID of your log group
-
-# List of approved user IDs
-approved_user_ids = [1234567890, 9876543210]  # Add the user IDs of approved users here
+# Load environment variables
+bot_token = os.getenv("BOT_TOKEN")
+log_group_id = os.getenv("LOG_GROUP_ID")
+approved_user_ids = os.getenv("APPROVED_USER_IDS", "").split(",")
 
 # Dictionary to store subscription data
 subscriptions = {}
