@@ -57,7 +57,7 @@ def paid_command(update: Update, context):
         current_date = datetime.datetime.now().strftime("%Y-%m-%d")
         expire_date = (datetime.datetime.now() + datetime.timedelta(days=validity_period)).strftime("%Y-%m-%d")
 
-        output_message += f"ᴀᴍᴏᴜɴᴛ: {payment_amount} PD\n"
+        output_message += f"ᴀᴍᴏᴜɴᴛ: {payment_amount} PD\n\n"
         output_message += f"ꜱᴜʙꜱᴄʀɪᴘᴛɪᴏɴ ꜱᴛᴀʀᴛ: {current_date}\n\n"
         output_message += f"ᴠᴀʟɪᴅ ᴛɪʟʟ: {expire_date}"
 
