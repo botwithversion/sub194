@@ -1,17 +1,20 @@
 import logging
-import datetime
 import os
 from telegram import Bot, Update
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+from dotenv import load_dotenv
 
 # Load environment variables
-bot_token = os.getenv("BOT_TOKEN")
-log_group_id = os.getenv("LOG_GROUP_ID")
-approved_user_ids = list(map(int, os.environ.get('APPROVED_USER_IDS', '').split(',')))
+load_dotenv()
 
+# Telegram bot token
+bot_token = os.getenv('BOT_TOKEN')
 
-# Dictionary to store subscription data
-subscriptions = {}
+# Log group ID
+log_group_id = os.getenv('LOG_GROUP_ID')
+
+# Approved user IDs
+approved_user_ids = list(map(int, os.getenv('APPROVED_USER_IDS').split(',')))
 
 # Configure logging
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -70,72 +73,58 @@ def paid_command(update: Update, context):
         # Send the log message to the log group
         bot = Bot(token=bot_token)
         bot.send_message(chat_id=log_group_id, text=output_message)
-
-        # Store the subscription data in the dictionary
-        subscriptions[user_id] = {
-            'payment_amount': payment_amount,
-            'validity_period': validity_period,
-            'start_date': current_date,
-            'expire_date': expire_date
-        }
     else:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="You are not authorized to use this command.")
+        context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
 # Profile command handler
-def profile_command(update: Update, context: CallbackContext):
+def profile_command(update: Update, context):
     if update.message.reply_to_message is None:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="Please reply to a user's message to check the profile.")
+        context.bot.send_message(chat_id=update.effective_chat.id, text="Please reply to a user's message to check their profile.")
         return
 
     replied_user_id = update.message.reply_to_message.from_user.id
 
-    if replied_user_id in subscriptions:
-        subscription = subscriptions[replied_user_id]
-        output_message = f"Subscription Data for User ID: {replied_user_id}\n\n"
-        output_message += f"Payment Amount: {subscription['payment_amount']} USD\n"
-        output_message += f"Validity Period: {subscription['validity_period']} days\n"
-        output_message += f"Subscription Start: {subscription['start_date']}\n"
-        output_message += f"Valid Till: {subscription['expire_date']}"
+    if replied_user_id in approved_user_ids:
+        context.bot.send_message(chat_id=update.effective_chat.id, text="The replied user has an active subscription.")
     else:
-        output_message = "No subscription data found for the replied user."
-
-    context.bot.send_message(chat_id=update.effective_chat.id, text=output_message)
+        context.bot.send_message(chat_id=update.effective_chat.id, text="The replied user does not have an active subscription.")
 
 # Check data command handler
-def check_data_command(update: Update, context: CallbackContext):
-    output_message = "Subscription Data:\n\n"
-    if subscriptions:
-        for user_id, subscription in subscriptions.items():
-            output_message += f"User ID: {user_id}\n"
-            output_message += f"Payment Amount: {subscription['payment_amount']} USD\n"
-            output_message += f"Validity Period: {subscription['validity_period']} days\n"
-            output_message += f"Subscription Start: {subscription['start_date']}\n"
-            output_message += f"Valid Till: {subscription['expire_date']}\n\n"
+def check_data_command(update: Update, context):
+    if update.message.from_user.id in approved_user_ids:
+        for user_id, data in subscriptions.items():
+            output_message = f"User ID: {user_id}\n"
+            output_message += f"Amount: {data['amount']} USD\n"
+            output_message += f"Subscription Start: {data['start_date']}\n"
+            output_message += f"Valid Till: {data['expire_date']}\n"
+            context.bot.send_message(chat_id=update.effective_chat.id, text=output_message)
     else:
-        output_message += "No subscription data found."
-
-    context.bot.send_message(chat_id=update.effective_chat.id, text=output_message)
+        context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
 # Error handler
-def error(update: Update, context: CallbackContext):
+def error_handler(update: Update, context):
     logger.warning(f"Update {update} caused error {context.error}")
 
 def main():
+    # Create the Updater and pass the bot token
     updater = Updater(token=bot_token, use_context=True)
+
+    # Get the dispatcher to register handlers
     dispatcher = updater.dispatcher
 
-    # Add command handlers
+    # Register command handlers
     dispatcher.add_handler(CommandHandler("start", start_command))
     dispatcher.add_handler(CommandHandler("paid", paid_command))
     dispatcher.add_handler(CommandHandler("profile", profile_command))
     dispatcher.add_handler(CommandHandler("check_data", check_data_command))
 
-    # Add error handler
-    dispatcher.add_error_handler(error)
+    # Register error handler
+    dispatcher.add_error_handler(error_handler)
 
+    # Start the bot
     updater.start_polling()
-    logger.info("Bot started polling.")
 
+    # Run the bot until you press Ctrl-C
     updater.idle()
 
 if __name__ == '__main__':
