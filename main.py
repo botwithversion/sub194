@@ -1,10 +1,8 @@
 import os
 import logging
 import datetime
-import psycopg2
-from telegram import Update, Bot
+from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
-import dj_database_url
 
 # Set up logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -15,23 +13,6 @@ bot_token = os.environ.get('BOT_TOKEN')
 
 # Retrieve the approved user IDs from the environment variable
 approved_user_ids = set(int(user_id) for user_id in os.environ.get('APPROVED_USER_IDS', '').split(','))
-
-# Retrieve the log group ID from the environment variable
-log_group_id = os.environ.get('LOG_GROUP_ID')
-
-# Retrieve the database URL from the environment variable
-db_url = os.environ.get('DATABASE_URL')
-db_conn = dj_database_url.parse(db_url)
-
-# Establish the database connection
-conn = psycopg2.connect(
-    database=db_conn['NAME'],
-    user=db_conn['USER'],
-    password=db_conn['PASSWORD'],
-    host=db_conn['HOST'],
-    port=db_conn['PORT']
-)
-cursor = conn.cursor()
 
 # Start command handler
 def start_command(update: Update, context):
@@ -66,22 +47,12 @@ def paid_command(update: Update, context):
                          f"Amount: {payment_amount}\n" \
                          f"Subscription Valid till: {expire_date}"
 
-        # Store the subscription details in the database
-        insert_query = '''INSERT INTO subscriptions (user_id, username, start_date, end_date)
-                          VALUES (%s, %s, %s, %s)
-                          ON CONFLICT (user_id) DO UPDATE
-                          SET username = EXCLUDED.username,
-                              start_date = EXCLUDED.start_date,
-                              end_date = EXCLUDED.end_date'''
-        cursor.execute(insert_query, (user_id, username, current_date, expire_date))
-        conn.commit()
-
-        # Log the output message
+        # Log the output message to the log group
         logger.info(output_message)
 
         # Send the log message to the log group
-        bot = Bot(token=bot_token)
-        bot.send_message(chat_id=log_group_id, text=output_message)
+        log_group_id = os.environ.get('LOG_GROUP_ID')
+        context.bot.send_message(chat_id=log_group_id, text=output_message)
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
@@ -95,17 +66,13 @@ def profile_command(update: Update, context):
     user_id = replied_user.id
 
     if update.message.from_user.id in approved_user_ids:
-        # Check if the user has an active subscription
-        select_query = '''SELECT end_date
-                          FROM subscriptions
-                          WHERE user_id = %s
-                          AND end_date >= CURRENT_DATE'''
-        cursor.execute(select_query, (user_id,))
-        result = cursor.fetchone()
+        # Check if the user has an active subscription by searching for their user ID in the log group messages
+        log_group_id = os.environ.get('LOG_GROUP_ID')
+        chat_messages = context.bot.get_chat(chat_id=log_group_id).get('messages')
+        subscription_messages = [message for message in chat_messages if str(user_id) in message.get('text', '')]
 
-        if result is not None:
-            end_date = result[0]
-            context.bot.send_message(chat_id=update.effective_chat.id, text=f"The user has an active subscription. Valid till: {end_date}")
+        if subscription_messages:
+            context.bot.send_message(chat_id=update.effective_chat.id, text="The user has an active subscription.")
         else:
             context.bot.send_message(chat_id=update.effective_chat.id, text="The user does not have an active subscription.")
     else:
