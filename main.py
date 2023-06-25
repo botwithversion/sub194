@@ -1,19 +1,18 @@
 import logging
 import datetime
-import os
 from telegram import Bot, Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
 # Telegram bot token
-bot_token = os.environ.get('BOT_TOKEN')
+bot_token = 'YOUR_BOT_TOKEN'
 
 # Log group ID
-log_group_id = os.environ.get('LOG_GROUP_ID')
+log_group_id = 'LOG_GROUP_ID'  # Replace with the ID of your log group
 
 # List of approved user IDs
-approved_user_ids = list(map(int, os.environ.get('APPROVED_USER_IDS', '').split(',')))
+approved_user_ids = [1234567890, 9876543210]  # Add the user IDs of approved users here
 
-# Dictionary to store subscriptions
+# Dictionary to store subscription data
 subscriptions = {}
 
 # Configure logging
@@ -70,51 +69,71 @@ def paid_command(update: Update, context):
         # Log the output message
         logger.info(output_message)
 
-        # Add the subscription to the dictionary
-        subscriptions[user_id] = {
-            'validity_date': expire_date
-        }
-
         # Send the log message to the log group
         bot = Bot(token=bot_token)
         bot.send_message(chat_id=log_group_id, text=output_message)
+
+        # Store the subscription data in the dictionary
+        subscriptions[user_id] = {
+            'payment_amount': payment_amount,
+            'validity_period': validity_period,
+            'start_date': current_date,
+            'expire_date': expire_date
+        }
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
 # Profile command handler
-def profile_command(update: Update, context):
-    if update.message.reply_to_message is None:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="Please reply to a user's message to check their profile.")
-        return
-
-    replied_user = update.message.reply_to_message.from_user
-    user_id = replied_user.id
-
-    if user_id in subscriptions:
-        valid_till = subscriptions[user_id]['validity_date']
-        current_date = datetime.datetime.now().strftime("%Y-%m-%d")
-
-        if current_date <= valid_till:
-            context.bot.send_message(chat_id=update.effective_chat.id, text="The user has an active subscription.")
-        else:
-            context.bot.send_message(chat_id=update.effective_chat.id, text="The user's subscription has expired.")
+def profile_command(update: Update, context: CallbackContext):
+    replied_user_id = update.message.reply_to_message.from_user.id
+    if replied_user_id in subscriptions:
+        subscription = subscriptions[replied_user_id]
+        output_message = f"Subscription Data for User ID: {replied_user_id}\n\n"
+        output_message += f"Payment Amount: {subscription['payment_amount']} USD\n"
+        output_message += f"Validity Period: {subscription['validity_period']} days\n"
+        output_message += f"Subscription Start: {subscription['start_date']}\n"
+        output_message += f"Valid Till: {subscription['expire_date']}"
     else:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="No active subscription found for the user.")
+        output_message = "No subscription data found for the replied user."
 
-# Create the Telegram bot
-bot = Bot(token=bot_token)
-updater = Updater(bot=bot, use_context=True)
+    context.bot.send_message(chat_id=update.effective_chat.id, text=output_message)
 
-# Register handlers
-start_handler = CommandHandler('start', start_command)
-paid_handler = CommandHandler('paid', paid_command)
-profile_handler = CommandHandler('profile', profile_command)
-updater.dispatcher.add_handler(start_handler)
-updater.dispatcher.add_handler(paid_handler)
-updater.dispatcher.add_handler(profile_handler)
+# Check data command handler
+def check_data_command(update: Update, context: CallbackContext):
+    output_message = "Subscription Data:\n\n"
+    if subscriptions:
+        for user_id, subscription in subscriptions.items():
+            output_message += f"User ID: {user_id}\n"
+            output_message += f"Payment Amount: {subscription['payment_amount']} USD\n"
+            output_message += f"Validity Period: {subscription['validity_period']} days\n"
+            output_message += f"Subscription Start: {subscription['start_date']}\n"
+            output_message += f"Valid Till: {subscription['expire_date']}\n\n"
+    else:
+        output_message += "No subscription data found."
 
-# Start the bot
-updater.start_polling()
+    context.bot.send_message(chat_id=update.effective_chat.id, text=output_message)
 
-# Run the bot until it is stopped manually
-updater.idle()
+# Error handler
+def error(update: Update, context: CallbackContext):
+    logger.warning(f"Update {update} caused error {context.error}")
+
+def main():
+    updater = Updater(token=bot_token, use_context=True)
+    dispatcher = updater.dispatcher
+
+    # Add command handlers
+    dispatcher.add_handler(CommandHandler("start", start_command))
+    dispatcher.add_handler(CommandHandler("paid", paid_command))
+    dispatcher.add_handler(CommandHandler("profile", profile_command))
+    dispatcher.add_handler(CommandHandler("check_data", check_data_command))
+
+    # Add error handler
+    dispatcher.add_error_handler(error)
+
+    updater.start_polling()
+    logger.info("Bot started polling.")
+
+    updater.idle()
+
+if __name__ == '__main__':
+    main()
