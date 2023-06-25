@@ -2,7 +2,7 @@ from telegram import Bot, Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
 # Telegram bot token
-bot_token = '5944836678:AAFEFzsbnOrNuescpuhc2rgX9pb4bJJEytM'
+bot_token = '5187613700:AAGi2CNj-NrbB1MqKMS9Ft-F7aANxpp1iNk'
 
 # List of approved users
 approved_users = ['tiny_pro', 'FRAG_GOD_HACKER']  # Add the usernames of approved users here
