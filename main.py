@@ -13,6 +13,9 @@ log_group_id = os.environ.get('LOG_GROUP_ID')
 # List of approved user IDs
 approved_user_ids = list(map(int, os.environ.get('APPROVED_USER_IDS', '').split(',')))
 
+# Dictionary to store subscriptions
+subscriptions = {}
+
 # Configure logging
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -67,6 +70,11 @@ def paid_command(update: Update, context):
         # Log the output message
         logger.info(output_message)
 
+        # Add the subscription to the dictionary
+        subscriptions[user_id] = {
+            'validity_date': expire_date
+        }
+
         # Send the log message to the log group
         bot = Bot(token=bot_token)
         bot.send_message(chat_id=log_group_id, text=output_message)
@@ -83,10 +91,10 @@ def profile_command(update: Update, context):
     user_id = replied_user.id
 
     if user_id in subscriptions:
+        valid_till = subscriptions[user_id]['validity_date']
         current_date = datetime.datetime.now().strftime("%Y-%m-%d")
-        validity_date = subscriptions[user_id]['validity_date']
 
-        if current_date >= validity_date:
+        if current_date <= valid_till:
             context.bot.send_message(chat_id=update.effective_chat.id, text="The user has an active subscription.")
         else:
             context.bot.send_message(chat_id=update.effective_chat.id, text="The user's subscription has expired.")
