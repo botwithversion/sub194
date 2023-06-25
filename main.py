@@ -7,7 +7,8 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Callb
 # Load environment variables
 bot_token = os.getenv("BOT_TOKEN")
 log_group_id = os.getenv("LOG_GROUP_ID")
-approved_user_ids = os.getenv("APPROVED_USER_IDS", "").split(",")
+approved_user_ids = list(map(int, os.environ.get('APPROVED_USER_IDS', '').split(',')))
+
 
 # Dictionary to store subscription data
 subscriptions = {}
