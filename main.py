@@ -4,8 +4,8 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 # Telegram bot token
 bot_token = '5187613700:AAGi2CNj-NrbB1MqKMS9Ft-F7aANxpp1iNk'
 
-# List of approved users
-approved_users = ['tiny_pro', '@tiny_pro']  # Add the usernames of approved users here
+# List of approved user IDs
+approved_user_ids = [5912161237]  # Add the user IDs of approved users here
 
 # Start command handler
 def start_command(update: Update, context):
@@ -14,7 +14,6 @@ def start_command(update: Update, context):
 # Paid command handler
 def paid_command(update: Update, context):
     user = update.message.reply_to_message.from_user
-    username = user.username
     user_id = user.id
     message_text = update.message.text.strip().split()
 
@@ -24,8 +23,8 @@ def paid_command(update: Update, context):
 
     payment_amount = ''.join(filter(str.isdigit, message_text[1]))  # Extract the payment amount
 
-    if username in approved_users:
-        output_message = f"Customer - {username} (user id: {user_id}) has paid {payment_amount}."
+    if user_id in approved_user_ids:
+        output_message = f"Customer - {user_id} has paid {payment_amount}."
         context.bot.send_message(chat_id=update.effective_chat.id, text=output_message)
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
