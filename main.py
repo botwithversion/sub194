@@ -46,20 +46,20 @@ def paid_command(update: Update, context):
             break
 
     if update.message.from_user.id in approved_user_ids:
-        output_message = "THANKS FOR YOUR SUBSCRIPTION\n"
-        output_message += f"User ID: {user_id}\n\n"
+        output_message = "✨ᴛʜᴀɴᴋꜱ ꜰᴏʀ ʏᴏᴜʀ ꜱᴜʙꜱᴄʀɪᴘᴛɪᴏɴ✨\n\n"
+        output_message += f"ᴜꜱᴇʀ ɪᴅ: {user_id}\n\n"
 
         if username:
-            output_message += f"Username: @{username}\n\n"
+            output_message += f"ᴜꜱᴇʀɴᴀᴍᴇ: @{username}\n\n"
         elif first_name:
-            output_message += f"First Name: {first_name}\n\n"
+            output_message += f"ꜰɪʀꜱᴛ ɴᴀᴍᴇ: {first_name}\n\n"
 
         current_date = datetime.datetime.now().strftime("%Y-%m-%d")
         expire_date = (datetime.datetime.now() + datetime.timedelta(days=validity_period)).strftime("%Y-%m-%d")
 
-        output_message += f"Amount: {payment_amount} USD\n"
-        output_message += f"Subscription Start: {current_date}\n"
-        output_message += f"Valid Till: {expire_date}"
+        output_message += f"ᴀᴍᴏᴜɴᴛ: {payment_amount} PD\n"
+        output_message += f"ꜱᴜʙꜱᴄʀɪᴘᴛɪᴏɴ ꜱᴛᴀʀᴛ: {current_date}\n\n"
+        output_message += f"ᴠᴀʟɪᴅ ᴛɪʟʟ: {expire_date}"
 
         context.bot.send_message(chat_id=update.effective_chat.id, text=output_message)
 
