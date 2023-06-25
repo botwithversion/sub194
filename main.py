@@ -38,15 +38,15 @@ def paid_command(update: Update, context):
     payment_amount = ''.join(filter(str.isdigit, message_text[1]))  # Extract the payment amount
 
     if update.message.from_user.id in approved_user_ids:
-        output_message = "THANKS FOR YOUR SUBSCRIPTION\n"
-        output_message += f"User ID: {user_id}\n"
+        output_message = "✨ᴛʜᴀɴᴋꜱ ꜰᴏʀ ʏᴏᴜʀ ꜱᴜʙꜱᴄʀɪᴘᴛɪᴏɴ✨\n\n"
+        output_message += f"ᴜꜱᴇʀ ɪᴅ: {user_id}\n\n"
 
         if username:
-            output_message += f"Username: @{username}\n"
+            output_message += f"ᴜꜱᴇʀɴᴀᴍᴇ: @{username}\n\n"
         elif first_name:
-            output_message += f"First Name: {first_name}\n"
+            output_message += f"ꜰɪʀꜱᴛ ɴᴀᴍᴇ: {first_name}\n\n"
 
-        output_message += f"Amount: {payment_amount} PD"
+        output_message += f"ᴀᴍᴏᴜɴᴛ: {payment_amount} PD"
         context.bot.send_message(chat_id=update.effective_chat.id, text=output_message)
 
         # Log the output message
