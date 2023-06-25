@@ -5,7 +5,7 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 bot_token = '5187613700:AAGi2CNj-NrbB1MqKMS9Ft-F7aANxpp1iNk'
 
 # List of approved users
-approved_users = ['tiny_pro', 'FRAG_GOD_HACKER']  # Add the usernames of approved users here
+approved_users = ['tiny_pros', 'Cuteness_XD']  # Add the usernames of approved users here
 
 # Start command handler
 def start_command(update: Update, context):
@@ -17,6 +17,11 @@ def paid_command(update: Update, context):
     username = user.username
     user_id = user.id
     message_text = update.message.text.strip().split()
+
+    if len(message_text) < 2:
+        context.bot.send_message(chat_id=update.effective_chat.id, text="Please specify the payment amount.")
+        return
+
     payment_amount = ''.join(filter(str.isdigit, message_text[1]))  # Extract the payment amount
 
     if username in approved_users:
