@@ -81,7 +81,7 @@ def profile_command(update: Update, context):
 
     # Check if the user is an approved user
     if update.message.from_user.id not in approved_user_ids:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
+        context.bot.send_message(chat_id=update.effective_chat.id, text="You are not authorized to use this command.")
         return
 
     replied_user = update.message.reply_to_message.from_user
@@ -122,3 +122,4 @@ updater.start_polling()
 
 # Run the bot until it is stopped manually
 updater.idle()
+
