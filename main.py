@@ -3,7 +3,7 @@ from telegram import Bot, Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
 # Telegram bot token
-bot_token = '5187613700:AAGi2CNj-NrbB1MqKMS9Ft-F7aANxpp1iNk'
+bot_token = '6226527400:AAExD7XybEOdVdp3hTpycXsYl0RDRXERhVc'
 
 # Log group ID
 log_group_id = '-864625355'  # Replace with the ID of your log group
