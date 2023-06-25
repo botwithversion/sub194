@@ -1,6 +1,6 @@
+import logging
 from telegram import Bot, Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
-from telegram_log import TelegramLog
 
 # Telegram bot token
 bot_token = '5187613700:AAGi2CNj-NrbB1MqKMS9Ft-F7aANxpp1iNk'
@@ -10,6 +10,10 @@ log_group_id = '-864625355'  # Replace with the ID of your log group
 
 # List of approved user IDs
 approved_user_ids = [5912161237]  # Add the user IDs of approved users here
+
+# Configure logging
+logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Start command handler
 def start_command(update: Update, context):
@@ -45,9 +49,12 @@ def paid_command(update: Update, context):
         output_message += f"Amount: {payment_amount}"
         context.bot.send_message(chat_id=update.effective_chat.id, text=output_message)
 
-        # Log the output to the log group
-        log_bot = TelegramLog(bot_token)
-        log_bot.send_message(chat_id=log_group_id, text=output_message)
+        # Log the output message
+        logger.info(output_message)
+
+        # Send the log message to the log group
+        bot = Bot(token=bot_token)
+        bot.send_message(chat_id=log_group_id, text=output_message)
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
