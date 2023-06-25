@@ -39,14 +39,14 @@ def paid_command(update: Update, context):
 
     if update.message.from_user.id in approved_user_ids:
         output_message = "THANKS FOR YOUR SUBSCRIPTION\n"
-        output_message += f"User id: {user_id}\n"
+        output_message += f"User ID: {user_id}\n"
 
         if username:
             output_message += f"Username: @{username}\n"
-        else:
+        elif first_name:
             output_message += f"First Name: {first_name}\n"
 
-        output_message += f"Amount: {payment_amount}"
+        output_message += f"Amount: {payment_amount} USD"
         context.bot.send_message(chat_id=update.effective_chat.id, text=output_message)
 
         # Log the output message
