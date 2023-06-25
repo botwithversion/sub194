@@ -1,4 +1,5 @@
 import logging
+import datetime
 from telegram import Bot, Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
@@ -32,21 +33,34 @@ def paid_command(update: Update, context):
     message_text = update.message.text.strip().split()
 
     if len(message_text) < 2:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="Please specify the payment amount.")
+        context.bot.send_message(chat_id=update.effective_chat.id, text="Please specify the payment amount and validity period.")
         return
 
     payment_amount = ''.join(filter(str.isdigit, message_text[1]))  # Extract the payment amount
 
+    # Extract the validity period from the message
+    validity_period = 1  # Default validity period is 1 day
+    for word in message_text[2:]:
+        if word.isdigit():
+            validity_period = int(word)
+            break
+
     if update.message.from_user.id in approved_user_ids:
-        output_message = "✨ᴛʜᴀɴᴋꜱ ꜰᴏʀ ʏᴏᴜʀ ꜱᴜʙꜱᴄʀɪᴘᴛɪᴏɴ✨\n\n"
-        output_message += f"ᴜꜱᴇʀ ɪᴅ: {user_id}\n\n"
+        output_message = "THANKS FOR YOUR SUBSCRIPTION\n"
+        output_message += f"User ID: {user_id}\n\n"
 
         if username:
-            output_message += f"ᴜꜱᴇʀɴᴀᴍᴇ: @{username}\n\n"
+            output_message += f"Username: @{username}\n\n"
         elif first_name:
-            output_message += f"ꜰɪʀꜱᴛ ɴᴀᴍᴇ: {first_name}\n\n"
+            output_message += f"First Name: {first_name}\n\n"
 
-        output_message += f"ᴀᴍᴏᴜɴᴛ: {payment_amount} PD"
+        current_date = datetime.datetime.now().strftime("%Y-%m-%d")
+        expire_date = (datetime.datetime.now() + datetime.timedelta(days=validity_period)).strftime("%Y-%m-%d")
+
+        output_message += f"Amount: {payment_amount} USD\n"
+        output_message += f"Subscription Start: {current_date}\n"
+        output_message += f"Valid Till: {expire_date}"
+
         context.bot.send_message(chat_id=update.effective_chat.id, text=output_message)
 
         # Log the output message
