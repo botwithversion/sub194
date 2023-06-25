@@ -1,7 +1,7 @@
 import logging
 import datetime
 from telegram import Bot, Update
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
 # Telegram bot token
 bot_token = 'YOUR_BOT_TOKEN'
@@ -81,11 +81,16 @@ def paid_command(update: Update, context):
             'expire_date': expire_date
         }
     else:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
+        context.bot.send_message(chat_id=update.effective_chat.id, text="You are not authorized to use this command.")
 
 # Profile command handler
 def profile_command(update: Update, context: CallbackContext):
+    if update.message.reply_to_message is None:
+        context.bot.send_message(chat_id=update.effective_chat.id, text="Please reply to a user's message to check the profile.")
+        return
+
     replied_user_id = update.message.reply_to_message.from_user.id
+
     if replied_user_id in subscriptions:
         subscription = subscriptions[replied_user_id]
         output_message = f"Subscription Data for User ID: {replied_user_id}\n\n"
