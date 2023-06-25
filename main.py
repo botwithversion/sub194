@@ -13,7 +13,12 @@ def start_command(update: Update, context):
 
 # Paid command handler
 def paid_command(update: Update, context):
-    user = update.message.reply_to_message.from_user
+    reply_message = update.message.reply_to_message
+    if reply_message is None:
+        context.bot.send_message(chat_id=update.effective_chat.id, text="Please reply to a user's message to process the payment.")
+        return
+
+    user = reply_message.from_user
     user_id = user.id
     message_text = update.message.text.strip().split()
 
