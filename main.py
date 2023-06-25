@@ -1,6 +1,6 @@
-import os
 import logging
 import datetime
+import os
 from telegram import Bot, Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
@@ -10,9 +10,8 @@ bot_token = os.environ.get('BOT_TOKEN')
 # Log group ID
 log_group_id = os.environ.get('LOG_GROUP_ID')
 
-# Approved user IDs
-approved_user_ids_str = os.environ.get('APPROVED_USER_IDS')
-approved_user_ids = [int(user_id.strip()) for user_id in approved_user_ids_str.split(',')] if approved_user_ids_str else []
+# List of approved user IDs
+approved_user_ids = [int(user_id) for user_id in os.environ.get('APPROVED_USER_IDS', '').split(',')]
 
 # Configure logging
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -26,11 +25,6 @@ def start_command(update: Update, context):
 def paid_command(update: Update, context):
     if update.message.reply_to_message is None:
         context.bot.send_message(chat_id=update.effective_chat.id, text="Please reply to a user's message to process the payment.")
-        return
-
-    # Check if the user is an approved user
-    if update.message.from_user.id not in approved_user_ids:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
         return
 
     replied_user = update.message.reply_to_message.from_user
@@ -52,29 +46,32 @@ def paid_command(update: Update, context):
             validity_period = int(word)
             break
 
-    output_message = "THANKS FOR YOUR SUBSCRIPTION\n"
-    output_message += f"User ID: {user_id}\n\n"
+    if update.message.from_user.id in approved_user_ids:
+        output_message = "THANKS FOR YOUR SUBSCRIPTION\n"
+        output_message += f"User ID: {user_id}\n\n"
 
-    if username:
-        output_message += f"Username: @{username}\n\n"
-    elif first_name:
-        output_message += f"First Name: {first_name}\n\n"
+        if username:
+            output_message += f"Username: @{username}\n\n"
+        elif first_name:
+            output_message += f"First Name: {first_name}\n\n"
 
-    current_date = datetime.datetime.now().strftime("%Y-%m-%d")
-    expire_date = (datetime.datetime.now() + datetime.timedelta(days=validity_period)).strftime("%Y-%m-%d")
+        current_date = datetime.datetime.now().strftime("%Y-%m-%d")
+        expire_date = (datetime.datetime.now() + datetime.timedelta(days=validity_period)).strftime("%Y-%m-%d")
 
-    output_message += f"Amount: {payment_amount} USD\n"
-    output_message += f"Subscription Start: {current_date}\n"
-    output_message += f"Valid Till: {expire_date}"
+        output_message += f"Amount: {payment_amount} USD\n"
+        output_message += f"Subscription Start: {current_date}\n"
+        output_message += f"Valid Till: {expire_date}"
 
-    context.bot.send_message(chat_id=update.effective_chat.id, text=output_message)
+        context.bot.send_message(chat_id=update.effective_chat.id, text=output_message)
 
-    # Log the output message
-    logger.info(output_message)
+        # Log the output message
+        logger.info(output_message)
 
-    # Send the log message to the log group
-    bot = Bot(token=bot_token)
-    bot.send_message(chat_id=log_group_id, text=output_message)
+        # Send the log message to the log group
+        bot = Bot(token=bot_token)
+        bot.send_message(chat_id=log_group_id, text=output_message)
+    else:
+        context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
 # Profile command handler
 def profile_command(update: Update, context):
@@ -90,21 +87,23 @@ def profile_command(update: Update, context):
     replied_user = update.message.reply_to_message.from_user
     user_id = replied_user.id
 
-    # Check if the user has an active subscription
-    has_active_subscription = False
-    for record in logger.records:
-        if record.levelname == 'INFO':
-            if f"User ID: {user_id}" in record.message:
-                valid_till_str = record.message.split("Valid Till: ")[-1]
-                valid_till = datetime.datetime.strptime(valid_till_str, "%Y-%m-%d").date()
-                if valid_till >= datetime.date.today():
-                    has_active_subscription = True
-                    break
+    # Search for user's subscription in the log records
+    found = False
+    for record in logger.handlers[0].buffer:
+        if record.msg.startswith("User ID:"):
+            record_user_id = record.msg.split(":")[1].strip()
+            if int(record_user_id) == user_id:
+                found = True
+                current_date = datetime.datetime.now().strftime("%Y-%m-%d")
+                validity_date = record.msg.split("Valid Till:")[1].strip()
+                if current_date <= validity_date:
+                    context.bot.send_message(chat_id=update.effective_chat.id, text="The user has an active subscription.")
+                else:
+                    context.bot.send_message(chat_id=update.effective_chat.id, text="The user's subscription has expired.")
+                break
 
-    if has_active_subscription:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="The user has an active subscription.")
-    else:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="The user does not have an active subscription.")
+    if not found:
+        context.bot.send_message(chat_id=update.effective_chat.id, text="No active subscription found for the user.")
 
 # Create the Telegram bot
 bot = Bot(token=bot_token)
