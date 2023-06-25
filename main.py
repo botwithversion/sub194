@@ -122,4 +122,3 @@ updater.start_polling()
 
 # Run the bot until it is stopped manually
 updater.idle()
-
