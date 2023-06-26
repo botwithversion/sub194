@@ -10,14 +10,22 @@ bot_token = os.getenv("BOT_TOKEN")
 log_group_id = os.getenv("LOG_GROUP_ID")
 approved_user_ids = list(map(int, os.environ.get('APPROVED_USER_IDS', '').split(',')))
 
-# Create a connection to the SQLite database
-conn = sqlite3.connect('subscriptions.db')
-conn.execute('''CREATE TABLE IF NOT EXISTS subscriptions
-                (user_id INTEGER PRIMARY KEY,
-                payment_amount TEXT,
-                validity_period INTEGER,
-                start_date TEXT,
-                expire_date TEXT)''')
+# Create SQLite connection
+db_file = "subscriptions.db"
+conn = sqlite3.connect(db_file)
+
+# Create the subscriptions table if it doesn't exist
+create_table_query = """
+CREATE TABLE IF NOT EXISTS subscriptions (
+    user_id INTEGER PRIMARY KEY,
+    payment_amount TEXT,
+    validity_period INTEGER,
+    start_date TEXT,
+    expire_date TEXT
+);
+"""
+conn.execute(create_table_query)
+conn.commit()
 
 # Configure logging
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -78,10 +86,8 @@ def paid_command(update: Update, context: CallbackContext):
         bot.send_message(chat_id=log_group_id, text=output_message)
 
         # Store the subscription data in the database
-        conn.execute('''INSERT INTO subscriptions
-                        (user_id, payment_amount, validity_period, start_date, expire_date)
-                        VALUES (?, ?, ?, ?, ?)''',
-                     (user_id, payment_amount, validity_period, current_date, expire_date))
+        insert_query = "INSERT INTO subscriptions (user_id, payment_amount, validity_period, start_date, expire_date) VALUES (?, ?, ?, ?, ?)"
+        conn.execute(insert_query, (user_id, payment_amount, validity_period, current_date, expire_date))
         conn.commit()
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not authorized to use this command.")
@@ -94,19 +100,16 @@ def profile_command(update: Update, context: CallbackContext):
 
     replied_user_id = update.message.reply_to_message.from_user.id
 
-    cursor = conn.execute("SELECT * FROM subscriptions WHERE user_id = ?", (replied_user_id,))
-    subscription = cursor.fetchone()
+    select_query = "SELECT * FROM subscriptions WHERE user_id = ?"
+    result = conn.execute(select_query, (replied_user_id,))
+    subscription = result.fetchone()
 
     if subscription:
-        # Subscription data found in the database
-        # Extract the values from the subscription tuple
-        payment_amount, validity_period, start_date, expire_date = subscription[1:]
-
         output_message = f"Subscription Data for User ID: {replied_user_id}\n\n"
-        output_message += f"Payment Amount: {payment_amount} USD\n"
-        output_message += f"Validity Period: {validity_period} days\n"
-        output_message += f"Subscription Start: {start_date}\n"
-        output_message += f"Valid Till: {expire_date}"
+        output_message += f"Payment Amount: {subscription[1]} USD\n"
+        output_message += f"Validity Period: {subscription[2]} days\n"
+        output_message += f"Subscription Start: {subscription[3]}\n"
+        output_message += f"Valid Till: {subscription[4]}"
     else:
         output_message = "No subscription data found for the replied user."
 
@@ -114,19 +117,18 @@ def profile_command(update: Update, context: CallbackContext):
 
 # Check data command handler
 def check_data_command(update: Update, context: CallbackContext):
-    cursor = conn.execute("SELECT * FROM subscriptions")
-    all_subscriptions = cursor.fetchall()
+    select_query = "SELECT * FROM subscriptions"
+    result = conn.execute(select_query)
+    subscriptions = result.fetchall()
 
     output_message = "Subscription Data:\n\n"
-    if all_subscriptions:
-        for subscription in all_subscriptions:
-            user_id, payment_amount, validity_period, start_date, expire_date = subscription
-
-            output_message += f"User ID: {user_id}\n"
-            output_message += f"Payment Amount: {payment_amount} USD\n"
-            output_message += f"Validity Period: {validity_period} days\n"
-            output_message += f"Subscription Start: {start_date}\n"
-            output_message += f"Valid Till: {expire_date}\n\n"
+    if subscriptions:
+        for subscription in subscriptions:
+            output_message += f"User ID: {subscription[0]}\n"
+            output_message += f"Payment Amount: {subscription[1]} USD\n"
+            output_message += f"Validity Period: {subscription[2]} days\n"
+            output_message += f"Subscription Start: {subscription[3]}\n"
+            output_message += f"Valid Till: {subscription[4]}\n\n"
     else:
         output_message += "No subscription data found."
 
@@ -155,7 +157,7 @@ def main():
     updater.idle()
 
 if __name__ == '__main__':
-    try:
-        main()
-    finally:
-        conn.close()
+    main()
+
+# Close the SQLite connection
+conn.close()
