@@ -1,6 +1,7 @@
 import logging
 import datetime
 import os
+import pickle
 from telegram import Bot, Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
@@ -9,11 +10,16 @@ bot_token = os.getenv("BOT_TOKEN")
 log_group_id = os.getenv("LOG_GROUP_ID")
 approved_user_ids = list(map(int, os.environ.get('APPROVED_USER_IDS', '').split(',')))
 
-# Rest of the code...
-
-
 # Dictionary to store subscription data
 subscriptions = {}
+
+# File path for storing subscription data
+subscriptions_file = "subscriptions.pkl"
+
+# Check if the subscriptions file exists and load the data
+if os.path.exists(subscriptions_file):
+    with open(subscriptions_file, "rb") as file:
+        subscriptions = pickle.load(file)
 
 # Configure logging
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -80,6 +86,10 @@ def paid_command(update: Update, context):
             'start_date': current_date,
             'expire_date': expire_date
         }
+
+        # Save the subscriptions dictionary to file
+        with open(subscriptions_file, "wb") as file:
+            pickle.dump(subscriptions, file)
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not authorized to use this command.")
 
