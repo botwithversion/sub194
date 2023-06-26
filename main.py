@@ -13,7 +13,7 @@ bot_token = os.environ.get('BOT_TOKEN')
 log_group_id = os.environ.get('LOG_GROUP_ID')
 
 # List of approved user IDs
-approved_user_ids = [int(user_id) for user_id in os.environ.get('APPROVED_USER_IDS', '').split(',')]
+approved_user_ids = list(map(int, os.environ.get('APPROVED_USER_IDS', '').split(',')))
 
 # Configure logging
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
