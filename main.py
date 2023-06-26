@@ -1,42 +1,30 @@
 import logging
 import datetime
 import os
-import sqlite3
 from telegram import Bot, Update
-from telegram.ext import Updater, CommandHandler, CallbackContext
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
 # Load environment variables
 bot_token = os.getenv("BOT_TOKEN")
 log_group_id = os.getenv("LOG_GROUP_ID")
 approved_user_ids = list(map(int, os.environ.get('APPROVED_USER_IDS', '').split(',')))
 
-# Create SQLite connection
-db_file = "subscriptions.db"
-conn = sqlite3.connect(db_file)
+# Rest of the code...
 
-# Create the subscriptions table if it doesn't exist
-create_table_query = """
-CREATE TABLE IF NOT EXISTS subscriptions (
-    user_id INTEGER PRIMARY KEY,
-    payment_amount TEXT,
-    validity_period INTEGER,
-    start_date TEXT,
-    expire_date TEXT
-);
-"""
-conn.execute(create_table_query)
-conn.commit()
+
+# Dictionary to store subscription data
+subscriptions = {}
 
 # Configure logging
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Start command handler
-def start_command(update: Update, context: CallbackContext):
+def start_command(update: Update, context):
     context.bot.send_message(chat_id=update.effective_chat.id, text="Welcome to the subscription bot!")
 
 # Paid command handler
-def paid_command(update: Update, context: CallbackContext):
+def paid_command(update: Update, context):
     if update.message.reply_to_message is None:
         context.bot.send_message(chat_id=update.effective_chat.id, text="Please reply to a user's message to process the payment.")
         return
@@ -85,10 +73,13 @@ def paid_command(update: Update, context: CallbackContext):
         bot = Bot(token=bot_token)
         bot.send_message(chat_id=log_group_id, text=output_message)
 
-        # Store the subscription data in the database
-        insert_query = "INSERT INTO subscriptions (user_id, payment_amount, validity_period, start_date, expire_date) VALUES (?, ?, ?, ?, ?)"
-        conn.execute(insert_query, (user_id, payment_amount, validity_period, current_date, expire_date))
-        conn.commit()
+        # Store the subscription data in the dictionary
+        subscriptions[user_id] = {
+            'payment_amount': payment_amount,
+            'validity_period': validity_period,
+            'start_date': current_date,
+            'expire_date': expire_date
+        }
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not authorized to use this command.")
 
@@ -100,16 +91,13 @@ def profile_command(update: Update, context: CallbackContext):
 
     replied_user_id = update.message.reply_to_message.from_user.id
 
-    select_query = "SELECT * FROM subscriptions WHERE user_id = ?"
-    result = conn.execute(select_query, (replied_user_id,))
-    subscription = result.fetchone()
-
-    if subscription:
+    if replied_user_id in subscriptions:
+        subscription = subscriptions[replied_user_id]
         output_message = f"Subscription Data for User ID: {replied_user_id}\n\n"
-        output_message += f"Payment Amount: {subscription[1]} USD\n"
-        output_message += f"Validity Period: {subscription[2]} days\n"
-        output_message += f"Subscription Start: {subscription[3]}\n"
-        output_message += f"Valid Till: {subscription[4]}"
+        output_message += f"Payment Amount: {subscription['payment_amount']} USD\n"
+        output_message += f"Validity Period: {subscription['validity_period']} days\n"
+        output_message += f"Subscription Start: {subscription['start_date']}\n"
+        output_message += f"Valid Till: {subscription['expire_date']}"
     else:
         output_message = "No subscription data found for the replied user."
 
@@ -117,18 +105,14 @@ def profile_command(update: Update, context: CallbackContext):
 
 # Check data command handler
 def check_data_command(update: Update, context: CallbackContext):
-    select_query = "SELECT * FROM subscriptions"
-    result = conn.execute(select_query)
-    subscriptions = result.fetchall()
-
     output_message = "Subscription Data:\n\n"
     if subscriptions:
-        for subscription in subscriptions:
-            output_message += f"User ID: {subscription[0]}\n"
-            output_message += f"Payment Amount: {subscription[1]} USD\n"
-            output_message += f"Validity Period: {subscription[2]} days\n"
-            output_message += f"Subscription Start: {subscription[3]}\n"
-            output_message += f"Valid Till: {subscription[4]}\n\n"
+        for user_id, subscription in subscriptions.items():
+            output_message += f"User ID: {user_id}\n"
+            output_message += f"Payment Amount: {subscription['payment_amount']} USD\n"
+            output_message += f"Validity Period: {subscription['validity_period']} days\n"
+            output_message += f"Subscription Start: {subscription['start_date']}\n"
+            output_message += f"Valid Till: {subscription['expire_date']}\n\n"
     else:
         output_message += "No subscription data found."
 
@@ -158,6 +142,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-# Close the SQLite connection
-conn.close()
