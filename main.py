@@ -76,28 +76,35 @@ def paid_command(update: Update, context):
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
 # Profile command handler
-def profile_command(update: Update, context):
-    if update.message.reply_to_message is None:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="Please reply to a user's message to check their profile.")
+def profile_command(update: Update, context: CallbackContext):
+    approved_users = os.getenv("APPROVED_USERS").split(",")
+    user_id = update.effective_user.id
+
+    if user_id not in approved_users:
+        update.message.reply_text("You are not authorized to use this command.")
         return
 
-    replied_user_id = update.message.reply_to_message.from_user.id
+    replied_user = update.message.reply_to_message.from_user
+    replied_user_id = replied_user.id
 
-    # Check if the user is an approved user
-    if update.message.from_user.id in approved_user_ids:
-        # Check if the user has an active subscription
-        active_subscription = False
-        for record in logger.handlers[0].buffer:
-            if str(replied_user_id) in record:
-                active_subscription = True
-                break
+    # Check if replied user has an active subscription
+    if replied_user_id not in logger.buffer:
+        update.message.reply_text("No active subscription found for the user.")
+        return
 
-        if active_subscription:
-            context.bot.send_message(chat_id=update.effective_chat.id, text="The user has an active subscription.")
-        else:
-            context.bot.send_message(chat_id=update.effective_chat.id, text="The user does not have an active subscription.")
-    else:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
+    records = logger.buffer[replied_user_id]
+    current_time = datetime.datetime.now()
+
+    for record in records:
+        valid_till = datetime.datetime.strptime(record["valid_till"], "%Y-%m-%d")
+
+        if valid_till >= current_time:
+            update.message.reply_text(f"User has an active subscription until {valid_till}.")
+            return
+
+    update.message.reply_text("User's subscription has expired.")
+
+# Rest of the code...
 
 # Check data command handler
 def check_data_command(update: Update, context):
