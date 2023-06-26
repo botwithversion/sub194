@@ -1,38 +1,42 @@
 import logging
 import datetime
 import os
-import pickle
+import dill
 from telegram import Bot, Update
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+from telegram.ext import Updater, CommandHandler, CallbackContext
 
 # Load environment variables
 bot_token = os.getenv("BOT_TOKEN")
 log_group_id = os.getenv("LOG_GROUP_ID")
-approved_user_ids = list(map(int, os.environ.get('APPROVED_USER_IDS', '').split(',')))
+approved_user_ids = list(map(int, os.environ.get("APPROVED_USER_IDS", "").split(",")))
+
+# File path for storing subscription data
+subscriptions_file = "subscriptions.dill"
 
 # Dictionary to store subscription data
 subscriptions = {}
 
-# File path for storing subscription data
-subscriptions_file = "subscriptions.pkl"
-
 # Check if the subscriptions file exists and load the data
 if os.path.exists(subscriptions_file):
     with open(subscriptions_file, "rb") as file:
-        subscriptions = pickle.load(file)
+        subscriptions = dill.load(file)
 
 # Configure logging
-logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
+logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 # Start command handler
-def start_command(update: Update, context):
+def start_command(update: Update, context: CallbackContext):
     context.bot.send_message(chat_id=update.effective_chat.id, text="Welcome to the subscription bot!")
 
+
 # Paid command handler
-def paid_command(update: Update, context):
+def paid_command(update: Update, context: CallbackContext):
     if update.message.reply_to_message is None:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="Please reply to a user's message to process the payment.")
+        context.bot.send_message(
+            chat_id=update.effective_chat.id, text="Please reply to a user's message to process the payment."
+        )
         return
 
     replied_user = update.message.reply_to_message.from_user
@@ -42,10 +46,12 @@ def paid_command(update: Update, context):
     message_text = update.message.text.strip().split()
 
     if len(message_text) < 2:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="Please specify the payment amount and validity period.")
+        context.bot.send_message(
+            chat_id=update.effective_chat.id, text="Please specify the payment amount and validity period."
+        )
         return
 
-    payment_amount = ''.join(filter(str.isdigit, message_text[1]))  # Extract the payment amount
+    payment_amount = "".join(filter(str.isdigit, message_text[1]))  # Extract the payment amount
 
     # Extract the validity period from the message
     validity_period = 1  # Default validity period is 1 day
@@ -81,22 +87,25 @@ def paid_command(update: Update, context):
 
         # Store the subscription data in the dictionary
         subscriptions[user_id] = {
-            'payment_amount': payment_amount,
-            'validity_period': validity_period,
-            'start_date': current_date,
-            'expire_date': expire_date
+            "payment_amount": payment_amount,
+            "validity_period": validity_period,
+            "start_date": current_date,
+            "expire_date": expire_date,
         }
 
-        # Save the subscriptions dictionary to file
+        # Serialize and save the subscriptions dictionary to file
         with open(subscriptions_file, "wb") as file:
-            pickle.dump(subscriptions, file)
+            dill.dump(subscriptions, file)
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not authorized to use this command.")
+
 
 # Profile command handler
 def profile_command(update: Update, context: CallbackContext):
     if update.message.reply_to_message is None:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="Please reply to a user's message to check the profile.")
+        context.bot.send_message(
+            chat_id=update.effective_chat.id, text="Please reply to a user's message to check the profile."
+        )
         return
 
     replied_user_id = update.message.reply_to_message.from_user.id
@@ -113,6 +122,7 @@ def profile_command(update: Update, context: CallbackContext):
 
     context.bot.send_message(chat_id=update.effective_chat.id, text=output_message)
 
+
 # Check data command handler
 def check_data_command(update: Update, context: CallbackContext):
     output_message = "Subscription Data:\n\n"
@@ -128,9 +138,11 @@ def check_data_command(update: Update, context: CallbackContext):
 
     context.bot.send_message(chat_id=update.effective_chat.id, text=output_message)
 
+
 # Error handler
 def error(update: Update, context: CallbackContext):
     logger.warning(f"Update {update} caused error {context.error}")
+
 
 def main():
     updater = Updater(token=bot_token, use_context=True)
@@ -150,5 +162,6 @@ def main():
 
     updater.idle()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
