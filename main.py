@@ -76,6 +76,7 @@ def paid_command(update: Update, context):
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
 # Profile command handler
+# Profile command handler
 def profile_command(update: Update, context):
     replied_user_id = update.message.reply_to_message.from_user.id
 
@@ -85,7 +86,9 @@ def profile_command(update: Update, context):
         conn.close()
 
         if profile:
-            context.bot.send_message(chat_id=update.effective_chat.id, text=profile[profile.find("\n\n")+2:])
+            profile_data = profile[profile.find("\n\n")+2:]
+            formatted_profile = f"<b>Profile Information:</b>\n\n{profile_data}"
+            context.bot.send_message(chat_id=update.effective_chat.id, text=formatted_profile, parse_mode='HTML')
         else:
             context.bot.send_message(chat_id=update.effective_chat.id, text="No profile data found for the user.")
     else:
