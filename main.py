@@ -87,9 +87,7 @@ def profile_command(update: Update, context):
 
     replied_user_id = update.message.reply_to_message.from_user.id
 
-    # Check if the user is an approved user
     if update.message.from_user.id in approved_user_ids:
-        # Retrieve the user's profile from the database
         conn = psycopg2.connect(db_url)
         profile = get_user_profile(conn, replied_user_id)
         conn.close()
@@ -103,9 +101,7 @@ def profile_command(update: Update, context):
 
 # Check data command handler
 def check_data_command(update: Update, context):
-    # Check if the user is an approved user
     if update.message.from_user.id in approved_user_ids:
-        # Retrieve the data from the database
         conn = psycopg2.connect(db_url)
         data = get_all_data(conn)
         conn.close()
