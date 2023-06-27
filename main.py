@@ -77,15 +77,25 @@ def paid_command(update: Update, context):
 
 # Profile command handler
 def profile_command(update: Update, context):
-    replied_user_id = update.message.reply_to_message.from_user.id
+    if update.message.reply_to_message is None:
+        context.bot.send_message(chat_id=update.effective_chat.id, text="Please reply to a user's message to check their profile.")
+        return
 
+    replied_user = update.message.reply_to_message.from_user
+    if not replied_user:
+        context.bot.send_message(chat_id=update.effective_chat.id, text="Cannot retrieve user information.")
+        return
+
+    replied_user_id = replied_user.id
+
+    # Check if the user is an approved user
     if update.message.from_user.id in approved_user_ids:
-        conn = psycopg2.connect(db_url)
-        profile = get_user_profile(conn, replied_user_id)
-        conn.close()
-
-        if profile:
-            context.bot.send_message(chat_id=update.effective_chat.id, text=profile[profile.find("\n\n")+2:])
+        messages = context.bot.get_chat_messages(chat_id=log_group_id, user_id=replied_user_id, limit=2)
+        if messages.total_count > 0:
+            latest_message = messages.messages[0].text
+            if "THANKS FOR YOUR SUBSCRIPTION" in latest_message:
+                latest_message = latest_message.replace("THANKS FOR YOUR SUBSCRIPTION\nUser ID: ", "")
+            context.bot.send_message(chat_id=update.effective_chat.id, text=latest_message)
         else:
             context.bot.send_message(chat_id=update.effective_chat.id, text="No profile data found for the user.")
     else:
