@@ -66,25 +66,17 @@ def paid_command(update: Update, context):
         output_message += f"Subscription Start: {current_date}\n"
         output_message += f"Valid Till: {expire_date}"
 
-        context.bot.send_message(chat_id=update.effective_chat.id, text=output_message)
-
-        # Send the log message to the log group
-        bot = Bot(token=bot_token)
-        bot.send_message(chat_id=log_group_id, text=output_message)
-
-        # Insert the log message into the database
         conn = psycopg2.connect(db_url)
         insert_log(conn, user_id, output_message)
         conn.close()
+
+        context.bot.send_message(chat_id=update.effective_chat.id, text="Payment processed successfully.")
+        context.bot.send_message(chat_id=log_group_id, text=output_message)
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
 # Profile command handler
 def profile_command(update: Update, context):
-    if update.message.reply_to_message is None:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="Please reply to a user's message to check their profile.")
-        return
-
     replied_user_id = update.message.reply_to_message.from_user.id
 
     if update.message.from_user.id in approved_user_ids:
@@ -93,7 +85,7 @@ def profile_command(update: Update, context):
         conn.close()
 
         if profile:
-            context.bot.send_message(chat_id=update.effective_chat.id, text=profile)
+            context.bot.send_message(chat_id=update.effective_chat.id, text=profile[profile.find("\n\n")+2:])
         else:
             context.bot.send_message(chat_id=update.effective_chat.id, text="No profile data found for the user.")
     else:
@@ -107,7 +99,7 @@ def check_data_command(update: Update, context):
         conn.close()
 
         if data:
-            context.bot.send_message(chat_id=update.effective_chat.id, text=data)
+            context.bot.send_message(chat_id=update.effective_chat.id, text=data[data.find("\n\n")+2:])
         else:
             context.bot.send_message(chat_id=update.effective_chat.id, text="No data available.")
     else:
@@ -182,7 +174,7 @@ def get_all_data(connection):
     """)
     result = cursor.fetchall()
     cursor.close()
-    return '\n'.join([row[0] for row in result]) if result else None
+    return '\n\n'.join([row[0] for row in result])
 
 if __name__ == '__main__':
     main()
