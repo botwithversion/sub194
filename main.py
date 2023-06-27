@@ -95,6 +95,7 @@ def profile_command(update: Update, context):
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
 # Check data command handler
+# Check data command handler
 def check_data_command(update: Update, context):
     if update.message.from_user.id in approved_user_ids:
         conn = psycopg2.connect(db_url)
@@ -102,7 +103,8 @@ def check_data_command(update: Update, context):
         conn.close()
 
         if data:
-            context.bot.send_message(chat_id=update.effective_chat.id, text=data[data.find("\n\n")+2:])
+            formatted_data = f"<b>Data Information:</b>\n\n{data[data.find('\n\n')+2:]}"
+            context.bot.send_message(chat_id=update.effective_chat.id, text=formatted_data, parse_mode='HTML')
         else:
             context.bot.send_message(chat_id=update.effective_chat.id, text="No data available.")
     else:
