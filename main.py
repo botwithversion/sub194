@@ -76,31 +76,18 @@ def paid_command(update: Update, context):
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
 # Profile command handler
-
 def profile_command(update: Update, context):
-    if update.message.reply_to_message is None:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="Please reply to a user's message to check their profile.")
-        return
+    replied_user_id = update.message.reply_to_message.from_user.id
 
-    replied_user = update.message.reply_to_message.from_user
-    if not replied_user:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="Cannot retrieve user information.")
-        return
-
-    replied_user_id = replied_user.id
-
-    # Check if the user is an approved user
     if update.message.from_user.id in approved_user_ids:
-        try:
-            chat_history = context.bot.get_chat(chat_id=log_group_id, limit=5)
-            for message in chat_history:
-                if message.from_user.id == replied_user_id:
-                    context.bot.send_message(chat_id=update.effective_chat.id, text=message.text)
-                    break
-            else:
-                context.bot.send_message(chat_id=update.effective_chat.id, text="No profile data found for the user.")
-        except Exception as e:
-            context.bot.send_message(chat_id=update.effective_chat.id, text=f"An error occurred: {str(e)}")
+        conn = psycopg2.connect(db_url)
+        profile = get_user_profile(conn, replied_user_id)
+        conn.close()
+
+        if profile:
+            context.bot.send_message(chat_id=update.effective_chat.id, text=profile[profile.find("\n\n")+2:])
+        else:
+            context.bot.send_message(chat_id=update.effective_chat.id, text="No profile data found for the user.")
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
@@ -178,13 +165,7 @@ def get_user_profile(connection, user_id):
     """, (user_id,))
     result = cursor.fetchone()
     cursor.close()
-    if result:
-        message = result[0]
-        if "THANKS FOR YOUR SUBSCRIPTION" in message:
-            message = message.replace("THANKS FOR YOUR SUBSCRIPTION\nUser ID: ", "")
-        return message
-    else:
-        return None
+    return result[0] if result else None
 
 def get_all_data(connection):
     cursor = connection.cursor()
@@ -193,11 +174,7 @@ def get_all_data(connection):
     """)
     result = cursor.fetchall()
     cursor.close()
-    data = '\n\n'.join([row[0] for row in result])
-    if "THANKS FOR YOUR SUBSCRIPTION" in data:
-        data = data.replace("THANKS FOR YOUR SUBSCRIPTION\nUser ID: ", "")
-    return data
-
+    return '\n\n'.join([row[0] for row in result])
 
 if __name__ == '__main__':
     main()
