@@ -165,7 +165,13 @@ def get_user_profile(connection, user_id):
     """, (user_id,))
     result = cursor.fetchone()
     cursor.close()
-    return result[0] if result else None
+    if result:
+        message = result[0]
+        if "THANKS FOR YOUR SUBSCRIPTION" in message:
+            message = message.replace("THANKS FOR YOUR SUBSCRIPTION\nUser ID: ", "")
+        return message
+    else:
+        return None
 
 def get_all_data(connection):
     cursor = connection.cursor()
@@ -174,7 +180,11 @@ def get_all_data(connection):
     """)
     result = cursor.fetchall()
     cursor.close()
-    return '\n\n'.join([row[0] for row in result])
+    data = '\n\n'.join([row[0] for row in result])
+    if "THANKS FOR YOUR SUBSCRIPTION" in data:
+        data = data.replace("THANKS FOR YOUR SUBSCRIPTION\nUser ID: ", "")
+    return data
+
 
 if __name__ == '__main__':
     main()
