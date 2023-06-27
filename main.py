@@ -1,6 +1,7 @@
 import os
 import logging
 import datetime
+import psycopg2
 from telegram import Bot, Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
@@ -12,6 +13,10 @@ log_group_id = os.environ.get('LOG_GROUP_ID')
 
 # List of approved user IDs
 approved_user_ids = [int(user_id) for user_id in os.environ.get('APPROVED_USER_IDS', '').split(',')]
+
+# Heroku Postgres connection details
+db_url = os.environ.get('DATABASE_URL')
+conn = psycopg2.connect(db_url)
 
 # Configure logging
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -64,9 +69,11 @@ def paid_command(update: Update, context):
 
         context.bot.send_message(chat_id=update.effective_chat.id, text=output_message)
 
-        # Send the log message to the log group
-        bot = Bot(token=bot_token)
-        bot.send_message(chat_id=log_group_id, text=output_message)
+        # Save the log message to the database
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO logs (user_id, message) VALUES (%s, %s)", (user_id, output_message))
+        conn.commit()
+        cursor.close()
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
@@ -80,9 +87,13 @@ def profile_command(update: Update, context):
 
     # Check if the user is an approved user
     if update.message.from_user.id in approved_user_ids:
-        messages = context.bot.get_chat_messages(chat_id=log_group_id, user_id=replied_user_id, limit=2)
-        if messages.total_count > 0:
-            latest_message = messages.messages[0].text
+        cursor = conn.cursor()
+        cursor.execute("SELECT message FROM logs WHERE user_id = %s ORDER BY id DESC LIMIT 1", (replied_user_id,))
+        result = cursor.fetchone()
+        cursor.close()
+
+        if result:
+            latest_message = result[0]
             context.bot.send_message(chat_id=update.effective_chat.id, text=latest_message)
         else:
             context.bot.send_message(chat_id=update.effective_chat.id, text="No profile data found for the user.")
@@ -93,9 +104,13 @@ def profile_command(update: Update, context):
 def check_data_command(update: Update, context):
     # Check if the user is an approved user
     if update.message.from_user.id in approved_user_ids:
-        messages = context.bot.get_chat_messages(chat_id=log_group_id, limit=10)
-        data = '\n'.join([message.text for message in messages.messages])
-        if data:
+        cursor = conn.cursor()
+        cursor.execute("SELECT message FROM logs ORDER BY id DESC LIMIT 10")
+        results = cursor.fetchall()
+        cursor.close()
+
+        if results:
+            data = '\n'.join([result[0] for result in results])
             context.bot.send_message(chat_id=update.effective_chat.id, text=data)
         else:
             context.bot.send_message(chat_id=update.effective_chat.id, text="No data available.")
