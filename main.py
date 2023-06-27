@@ -76,6 +76,7 @@ def paid_command(update: Update, context):
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
 # Profile command handler
+
 def profile_command(update: Update, context):
     if update.message.reply_to_message is None:
         context.bot.send_message(chat_id=update.effective_chat.id, text="Please reply to a user's message to check their profile.")
@@ -90,14 +91,16 @@ def profile_command(update: Update, context):
 
     # Check if the user is an approved user
     if update.message.from_user.id in approved_user_ids:
-        messages = context.bot.get_chat_messages(chat_id=log_group_id, user_id=replied_user_id, limit=2)
-        if messages.total_count > 0:
-            latest_message = messages.messages[0].text
-            if "THANKS FOR YOUR SUBSCRIPTION" in latest_message:
-                latest_message = latest_message.replace("THANKS FOR YOUR SUBSCRIPTION\nUser ID: ", "")
-            context.bot.send_message(chat_id=update.effective_chat.id, text=latest_message)
-        else:
-            context.bot.send_message(chat_id=update.effective_chat.id, text="No profile data found for the user.")
+        try:
+            chat_history = context.bot.get_chat(chat_id=log_group_id, limit=5)
+            for message in chat_history:
+                if message.from_user.id == replied_user_id:
+                    context.bot.send_message(chat_id=update.effective_chat.id, text=message.text)
+                    break
+            else:
+                context.bot.send_message(chat_id=update.effective_chat.id, text="No profile data found for the user.")
+        except Exception as e:
+            context.bot.send_message(chat_id=update.effective_chat.id, text=f"An error occurred: {str(e)}")
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
