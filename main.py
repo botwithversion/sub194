@@ -103,7 +103,7 @@ def check_data_command(update: Update, context):
         conn.close()
 
         if data:
-            formatted_data = f"<b>Data Information:</b>\n\n{data[data.find('\n\n')+2:]}"
+            formatted_data = "<b>Data Information:</b>\n\n" + data[data.find('\n\n')+2:]
             context.bot.send_message(chat_id=update.effective_chat.id, text=formatted_data, parse_mode='HTML')
         else:
             context.bot.send_message(chat_id=update.effective_chat.id, text="No data available.")
