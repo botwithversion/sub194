@@ -14,9 +14,8 @@ log_group_id = os.environ.get('LOG_GROUP_ID')
 # List of approved user IDs
 approved_user_ids = [int(user_id) for user_id in os.environ.get('APPROVED_USER_IDS', '').split(',')]
 
-# Heroku Postgres connection details
+# Heroku Postgres database URL
 db_url = os.environ.get('DATABASE_URL')
-conn = psycopg2.connect(db_url)
 
 # Configure logging
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -69,11 +68,14 @@ def paid_command(update: Update, context):
 
         context.bot.send_message(chat_id=update.effective_chat.id, text=output_message)
 
-        # Save the log message to the database
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO logs (user_id, message) VALUES (%s, %s)", (user_id, output_message))
-        conn.commit()
-        cursor.close()
+        # Send the log message to the log group
+        bot = Bot(token=bot_token)
+        bot.send_message(chat_id=log_group_id, text=output_message)
+
+        # Insert the log message into the database
+        conn = psycopg2.connect(db_url)
+        insert_log(conn, user_id, output_message)
+        conn.close()
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
@@ -87,14 +89,13 @@ def profile_command(update: Update, context):
 
     # Check if the user is an approved user
     if update.message.from_user.id in approved_user_ids:
-        cursor = conn.cursor()
-        cursor.execute("SELECT message FROM logs WHERE user_id = %s ORDER BY id DESC LIMIT 1", (replied_user_id,))
-        result = cursor.fetchone()
-        cursor.close()
+        # Retrieve the user's profile from the database
+        conn = psycopg2.connect(db_url)
+        profile = get_user_profile(conn, replied_user_id)
+        conn.close()
 
-        if result:
-            latest_message = result[0]
-            context.bot.send_message(chat_id=update.effective_chat.id, text=latest_message)
+        if profile:
+            context.bot.send_message(chat_id=update.effective_chat.id, text=profile)
         else:
             context.bot.send_message(chat_id=update.effective_chat.id, text="No profile data found for the user.")
     else:
@@ -104,13 +105,12 @@ def profile_command(update: Update, context):
 def check_data_command(update: Update, context):
     # Check if the user is an approved user
     if update.message.from_user.id in approved_user_ids:
-        cursor = conn.cursor()
-        cursor.execute("SELECT message FROM logs ORDER BY id DESC LIMIT 10")
-        results = cursor.fetchall()
-        cursor.close()
+        # Retrieve the data from the database
+        conn = psycopg2.connect(db_url)
+        data = get_all_data(conn)
+        conn.close()
 
-        if results:
-            data = '\n'.join([result[0] for result in results])
+        if data:
             context.bot.send_message(chat_id=update.effective_chat.id, text=data)
         else:
             context.bot.send_message(chat_id=update.effective_chat.id, text="No data available.")
@@ -137,11 +137,56 @@ def main():
     # Register error handler
     dispatcher.add_error_handler(error)
 
+    # Connect to the database
+    conn = psycopg2.connect(db_url)
+
+    # Create the "logs" table if it doesn't exist
+    create_logs_table(conn)
+
     # Start the bot
     updater.start_polling()
 
     # Run the bot until Ctrl-C is pressed
     updater.idle()
+
+def create_logs_table(connection):
+    cursor = connection.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS logs (
+            id SERIAL PRIMARY KEY,
+            user_id BIGINT,
+            message TEXT
+        );
+    """)
+    connection.commit()
+    cursor.close()
+
+def insert_log(connection, user_id, message):
+    cursor = connection.cursor()
+    cursor.execute("""
+        INSERT INTO logs (user_id, message)
+        VALUES (%s, %s);
+    """, (user_id, message))
+    connection.commit()
+    cursor.close()
+
+def get_user_profile(connection, user_id):
+    cursor = connection.cursor()
+    cursor.execute("""
+        SELECT message FROM logs WHERE user_id = %s ORDER BY id DESC LIMIT 1;
+    """, (user_id,))
+    result = cursor.fetchone()
+    cursor.close()
+    return result[0] if result else None
+
+def get_all_data(connection):
+    cursor = connection.cursor()
+    cursor.execute("""
+        SELECT message FROM logs;
+    """)
+    result = cursor.fetchall()
+    cursor.close()
+    return '\n'.join([row[0] for row in result]) if result else None
 
 if __name__ == '__main__':
     main()
