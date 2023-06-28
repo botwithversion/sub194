@@ -27,6 +27,7 @@ def start_command(update: Update, context):
 
 # Paid command handler
 # Paid command handler
+# Paid command handler
 def paid_command(update: Update, context):
     if update.message.reply_to_message is None:
         context.bot.send_message(chat_id=update.effective_chat.id, text="Please reply to a user's message to process the payment.")
@@ -74,6 +75,7 @@ def paid_command(update: Update, context):
         conn.close()
 
         context.bot.send_message(chat_id=update.effective_chat.id, text=output_message)
+        context.bot.send_message(chat_id=log_group_id, text=log_message)  # Send the log message to the log group
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
