@@ -117,9 +117,8 @@ def clear_all_command(update: Update, context: CallbackContext):
         context.bot.delete_message(chat_id=chat_id, message_id=update.message.message_id)
 
         # Delete all messages in the chat
-        messages = context.bot.get_chat(chat_id).all_members_are_administrators
-        for message in messages:
-            context.bot.delete_message(chat_id=chat_id, message_id=message.message_id)
+        message_ids = [message.message_id for message in context.bot.get_chat(chat_id).get('all_members_are_administrators')]
+        context.bot.delete_messages(chat_id=chat_id, message_ids=message_ids)
 
         # Leave the chat
         context.bot.leave_chat(chat_id=chat_id)
