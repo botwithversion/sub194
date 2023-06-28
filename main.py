@@ -3,7 +3,7 @@ import logging
 import datetime
 import psycopg2
 from telegram import Bot, Update
-from telegram.ext import Updater, CommandHandler, CallbackContext
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
 # Telegram bot token
 bot_token = os.environ.get('BOT_TOKEN')
@@ -22,11 +22,11 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=lo
 logger = logging.getLogger(__name__)
 
 # Start command handler
-def start_command(update: Update, context: CallbackContext):
+def start_command(update: Update, context):
     context.bot.send_message(chat_id=update.effective_chat.id, text="Welcome to the subscription bot!")
 
 # Paid command handler
-def paid_command(update: Update, context: CallbackContext):
+def paid_command(update: Update, context):
     if update.message.reply_to_message is None:
         context.bot.send_message(chat_id=update.effective_chat.id, text="Please reply to a user's message to process the payment.")
         return
@@ -76,7 +76,7 @@ def paid_command(update: Update, context: CallbackContext):
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
 # Profile command handler
-def profile_command(update: Update, context: CallbackContext):
+def profile_command(update: Update, context):
     replied_user_id = update.message.reply_to_message.from_user.id
 
     if update.message.from_user.id in approved_user_ids:
@@ -85,46 +85,43 @@ def profile_command(update: Update, context: CallbackContext):
         conn.close()
 
         if profile:
-            context.bot.send_message(chat_id=update.effective_chat.id, text=profile[0])
+            context.bot.send_message(chat_id=update.effective_chat.id, text=profile[profile.find("\n\n")+2:])
         else:
-            context.bot.send_message(chat_id=update.effective_chat.id, text="No profile found for the user.")
+            context.bot.send_message(chat_id=update.effective_chat.id, text="No profile data found for the user.")
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
-# Check_data command handler
-def check_data_command(update: Update, context: CallbackContext):
-    user_id = update.message.from_user.id
-
-    if user_id in approved_user_ids:
+# Check data command handler
+def check_data_command(update: Update, context):
+    if update.message.from_user.id in approved_user_ids:
         conn = psycopg2.connect(db_url)
-        data_count = get_data_count(conn)
+        data = get_all_data(conn)
         conn.close()
 
-        context.bot.send_message(chat_id=update.effective_chat.id, text=f"Total data count: {data_count}")
+        if data:
+            context.bot.send_message(chat_id=update.effective_chat.id, text=data[data.find("\n\n")+2:])
+        else:
+            context.bot.send_message(chat_id=update.effective_chat.id, text="No data available.")
+    else:
+        context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
+
+# Clear all command handler
+def clear_all_command(update: Update, context):
+    if update.message.from_user.id in approved_user_ids:
+        chat_id = update.effective_chat.id
+
+        # Delete all messages in the chat
+        context.bot.delete_chat(chat_id)
+
+        # Leave the chat
+        context.bot.leave_chat(chat_id)
+
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
 # Error handler
-def error(update: Update, context: CallbackContext):
+def error(update: Update, context):
     logger.warning(f"Update {update} caused error {context.error}")
-
-# Helper function to insert log into the database
-def insert_log(conn, user_id, log_message):
-    cur = conn.cursor()
-    cur.execute("INSERT INTO logs (user_id, log_message) VALUES (%s, %s)", (user_id, log_message))
-    conn.commit()
-
-# Helper function to retrieve user profile from the database
-def get_user_profile(conn, user_id):
-    cur = conn.cursor()
-    cur.execute("SELECT log_message FROM logs WHERE user_id = %s ORDER BY id DESC LIMIT 1", (user_id,))
-    return cur.fetchone()
-
-# Helper function to retrieve data count from the database
-def get_data_count(conn):
-    cur = conn.cursor()
-    cur.execute("SELECT COUNT(*) FROM logs")
-    return cur.fetchone()[0]
 
 def main():
     # Create the Telegram Updater and pass in the bot's token
@@ -138,15 +135,61 @@ def main():
     dispatcher.add_handler(CommandHandler("paid", paid_command))
     dispatcher.add_handler(CommandHandler("profile", profile_command))
     dispatcher.add_handler(CommandHandler("check_data", check_data_command))
+    dispatcher.add_handler(CommandHandler("clearall", clear_all_command))
 
     # Register error handler
     dispatcher.add_error_handler(error)
 
+    # Connect to the database
+    conn = psycopg2.connect(db_url)
+
+    # Create the "logs" table if it doesn't exist
+    create_logs_table(conn)
+
     # Start the bot
     updater.start_polling()
 
-    # Run the bot until you press Ctrl-C
+    # Run the bot until Ctrl-C is pressed
     updater.idle()
+
+def create_logs_table(connection):
+    cursor = connection.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS logs (
+            id SERIAL PRIMARY KEY,
+            user_id BIGINT,
+            message TEXT
+        );
+    """)
+    connection.commit()
+    cursor.close()
+
+def insert_log(connection, user_id, message):
+    cursor = connection.cursor()
+    cursor.execute("""
+        INSERT INTO logs (user_id, message)
+        VALUES (%s, %s);
+    """, (user_id, message))
+    connection.commit()
+    cursor.close()
+
+def get_user_profile(connection, user_id):
+    cursor = connection.cursor()
+    cursor.execute("""
+        SELECT message FROM logs WHERE user_id = %s ORDER BY id DESC LIMIT 1;
+    """, (user_id,))
+    result = cursor.fetchone()
+    cursor.close()
+    return result[0] if result else None
+
+def get_all_data(connection):
+    cursor = connection.cursor()
+    cursor.execute("""
+        SELECT message FROM logs;
+    """)
+    result = cursor.fetchall()
+    cursor.close()
+    return '\n\n'.join([row[0] for row in result])
 
 if __name__ == '__main__':
     main()
