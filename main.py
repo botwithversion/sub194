@@ -26,6 +26,7 @@ def start_command(update: Update, context):
     context.bot.send_message(chat_id=update.effective_chat.id, text="Welcome to the subscription bot!")
 
 # Paid command handler
+# Paid command handler
 def paid_command(update: Update, context):
     if update.message.reply_to_message is None:
         context.bot.send_message(chat_id=update.effective_chat.id, text="Please reply to a user's message to process the payment.")
@@ -66,8 +67,13 @@ def paid_command(update: Update, context):
         output_message += f"Subscription Start: {current_date}\n"
         output_message += f"Valid Till: {expire_date}"
 
+        log_message = f"User ID: {user_id}\n"
+        log_message += f"Amount: {payment_amount} USD\n"
+        log_message += f"Subscription Start: {current_date}\n"
+        log_message += f"Valid Till: {expire_date}"
+
         conn = psycopg2.connect(db_url)
-        insert_log(conn, user_id, output_message)
+        insert_log(conn, user_id, log_message)
         conn.close()
 
         context.bot.send_message(chat_id=update.effective_chat.id, text=output_message)
