@@ -70,12 +70,10 @@ def paid_command(update: Update, context):
         insert_log(conn, user_id, output_message)
         conn.close()
 
-        context.bot.send_message(chat_id=update.effective_chat.id, text="Payment processed successfully.")
-        context.bot.send_message(chat_id=log_group_id, text=output_message)
+        context.bot.send_message(chat_id=update.effective_chat.id, text=output_message)
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
-# Profile command handler
 def profile_command(update: Update, context):
     replied_user_id = update.message.reply_to_message.from_user.id
 
