@@ -2,7 +2,7 @@ import os
 import logging
 import datetime
 import psycopg2
-from telegram import Bot, Update
+from telegram import Bot, Update, Chat
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
 # Telegram bot token
@@ -106,7 +106,7 @@ def check_data_command(update: Update, context: CallbackContext):
 
 # Clear_all command handler
 def clear_all_command(update: Update, context: CallbackContext):
-    if update.message.chat.type not in ('group', 'supergroup'):
+    if update.message.chat.type not in (Chat.GROUP, Chat.SUPERGROUP):
         context.bot.send_message(chat_id=update.effective_chat.id, text="This command can only be used in a group or supergroup.")
         return
 
