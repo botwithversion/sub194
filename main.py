@@ -106,22 +106,21 @@ def check_data_command(update: Update, context):
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
 # Clear all command handler
-def clear_all_command(update: Update, context):
+def clear_all_command(update: Update, context: CallbackContext):
     if update.message.from_user.id in approved_user_ids:
         chat_id = update.effective_chat.id
 
         # Delete all messages in the chat
-        context.bot.delete_chat(chat_id)
+        messages = context.bot.get_chat(chat_id).get('all_members_are_administrators')
+        for message in messages:
+            context.bot.delete_message(chat_id, message.message_id)
 
         # Leave the chat
         context.bot.leave_chat(chat_id)
+        context.bot.send_message(chat_id=update.effective_chat.id, text="All messages have been deleted, and I have left the chat.")
 
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
-
-# Error handler
-def error(update: Update, context):
-    logger.warning(f"Update {update} caused error {context.error}")
 
 def main():
     # Create the Telegram Updater and pass in the bot's token
