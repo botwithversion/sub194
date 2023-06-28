@@ -2,8 +2,8 @@ import os
 import logging
 import datetime
 import psycopg2
-from telegram import Bot, Update, Chat
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+from telegram import Bot, Update
+from telegram.ext import Updater, CommandHandler, CallbackContext
 
 # Telegram bot token
 bot_token = os.environ.get('BOT_TOKEN')
@@ -104,27 +104,6 @@ def check_data_command(update: Update, context: CallbackContext):
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
-# Clear_all command handler
-def clear_all_command(update: Update, context: CallbackContext):
-    if update.message.chat.type not in (Chat.GROUP, Chat.SUPERGROUP):
-        context.bot.send_message(chat_id=update.effective_chat.id, text="This command can only be used in a group or supergroup.")
-        return
-
-    chat_id = update.message.chat.id
-    user_id = update.message.from_user.id
-
-    if user_id in approved_user_ids:
-        context.bot.delete_message(chat_id=chat_id, message_id=update.message.message_id)
-
-        # Delete all messages in the chat
-        message_ids = [message.message_id for message in context.bot.get_chat(chat_id).get('all_members_are_administrators')]
-        context.bot.delete_messages(chat_id=chat_id, message_ids=message_ids)
-
-        # Leave the chat
-        context.bot.leave_chat(chat_id=chat_id)
-    else:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
-
 # Error handler
 def error(update: Update, context: CallbackContext):
     logger.warning(f"Update {update} caused error {context.error}")
@@ -159,10 +138,9 @@ def main():
     dispatcher.add_handler(CommandHandler("paid", paid_command))
     dispatcher.add_handler(CommandHandler("profile", profile_command))
     dispatcher.add_handler(CommandHandler("check_data", check_data_command))
-    dispatcher.add_handler(CommandHandler("clearall", clear_all_command))  # Add clearall command handler
 
     # Register error handler
-    dispatcher.add_error_handler(error)  # Add error handler
+    dispatcher.add_error_handler(error)
 
     # Start the bot
     updater.start_polling()
