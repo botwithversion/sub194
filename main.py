@@ -26,8 +26,6 @@ def start_command(update: Update, context):
     context.bot.send_message(chat_id=update.effective_chat.id, text="Welcome to the subscription bot!")
 
 # Paid command handler
-# Paid command handler
-# Paid command handler
 def paid_command(update: Update, context):
     if update.message.reply_to_message is None:
         context.bot.send_message(chat_id=update.effective_chat.id, text="Please reply to a user's message to process the payment.")
@@ -68,17 +66,16 @@ def paid_command(update: Update, context):
         output_message += f"Subscription Start: {current_date}\n"
         output_message += f"Valid Till: {expire_date}"
 
-        log_message = output_message  # Use the same output message for logging
-
         conn = psycopg2.connect(db_url)
-        insert_log(conn, user_id, log_message)
+        insert_log(conn, user_id, output_message)
         conn.close()
 
-        context.bot.send_message(chat_id=update.effective_chat.id, text=output_message)
-        context.bot.send_message(chat_id=log_group_id, text=log_message)  # Send the log message to the log group
+        context.bot.send_message(chat_id=update.effective_chat.id, text="Payment processed successfully.")
+        context.bot.send_message(chat_id=log_group_id, text=output_message)
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
+# Profile command handler
 def profile_command(update: Update, context):
     replied_user_id = update.message.reply_to_message.from_user.id
 
@@ -108,6 +105,20 @@ def check_data_command(update: Update, context):
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
+# Clear all command handler
+def clear_all_command(update: Update, context):
+    if update.message.from_user.id in approved_user_ids:
+        chat_id = update.effective_chat.id
+
+        # Delete all messages in the chat
+        context.bot.delete_chat(chat_id)
+
+        # Leave the chat
+        context.bot.leave_chat(chat_id)
+
+    else:
+        context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
+
 # Error handler
 def error(update: Update, context):
     logger.warning(f"Update {update} caused error {context.error}")
@@ -124,6 +135,7 @@ def main():
     dispatcher.add_handler(CommandHandler("paid", paid_command))
     dispatcher.add_handler(CommandHandler("profile", profile_command))
     dispatcher.add_handler(CommandHandler("check_data", check_data_command))
+    dispatcher.add_handler(CommandHandler("clearall", clear_all_command))
 
     # Register error handler
     dispatcher.add_error_handler(error)
@@ -173,9 +185,7 @@ def get_user_profile(connection, user_id):
 def get_all_data(connection):
     cursor = connection.cursor()
     cursor.execute("""
-        SELECT DISTINCT ON (user_id) message
-        FROM logs
-        ORDER BY user_id, id DESC;
+        SELECT message FROM logs;
     """)
     result = cursor.fetchall()
     cursor.close()
