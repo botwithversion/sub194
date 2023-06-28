@@ -67,10 +67,7 @@ def paid_command(update: Update, context):
         output_message += f"Subscription Start: {current_date}\n"
         output_message += f"Valid Till: {expire_date}"
 
-        log_message = f"User ID: {user_id}\n"
-        log_message += f"Amount: {payment_amount} USD\n"
-        log_message += f"Subscription Start: {current_date}\n"
-        log_message += f"Valid Till: {expire_date}"
+        log_message = output_message  # Use the same output message for logging
 
         conn = psycopg2.connect(db_url)
         insert_log(conn, user_id, log_message)
