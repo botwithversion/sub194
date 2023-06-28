@@ -77,10 +77,6 @@ def paid_command(update: Update, context: CallbackContext):
 
 # Profile command handler
 def profile_command(update: Update, context: CallbackContext):
-    if update.message.reply_to_message is None:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="Please reply to a user's message to retrieve the profile.")
-        return
-
     replied_user_id = update.message.reply_to_message.from_user.id
 
     if update.message.from_user.id in approved_user_ids:
@@ -110,12 +106,11 @@ def check_data_command(update: Update, context: CallbackContext):
 
 # Clear_all command handler
 def clear_all_command(update: Update, context: CallbackContext):
-    chat_type = update.effective_chat.type
-    if chat_type not in (Chat.GROUP, Chat.SUPERGROUP):
+    if update.message.chat.type not in (Chat.GROUP, Chat.SUPERGROUP):
         context.bot.send_message(chat_id=update.effective_chat.id, text="This command can only be used in a group or supergroup.")
         return
 
-    chat_id = update.effective_chat.id
+    chat_id = update.message.chat.id
     user_id = update.message.from_user.id
 
     if user_id in approved_user_ids:
