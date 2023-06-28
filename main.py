@@ -76,7 +76,6 @@ def paid_command(update: Update, context):
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
 # Profile command handler
-# Profile command handler
 def profile_command(update: Update, context):
     replied_user_id = update.message.reply_to_message.from_user.id
 
@@ -86,15 +85,12 @@ def profile_command(update: Update, context):
         conn.close()
 
         if profile:
-            profile_data = profile[profile.find("\n\n")+2:]
-            formatted_profile = f"<b>Profile Information:</b>\n\n{profile_data}"
-            context.bot.send_message(chat_id=update.effective_chat.id, text=formatted_profile, parse_mode='HTML')
+            context.bot.send_message(chat_id=update.effective_chat.id, text=profile[profile.find("\n\n")+2:])
         else:
             context.bot.send_message(chat_id=update.effective_chat.id, text="No profile data found for the user.")
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
-# Check data command handler
 # Check data command handler
 def check_data_command(update: Update, context):
     if update.message.from_user.id in approved_user_ids:
@@ -103,8 +99,7 @@ def check_data_command(update: Update, context):
         conn.close()
 
         if data:
-            formatted_data = "<b>Data Information:</b>\n\n" + data[data.find('\n\n')+2:]
-            context.bot.send_message(chat_id=update.effective_chat.id, text=formatted_data, parse_mode='HTML')
+            context.bot.send_message(chat_id=update.effective_chat.id, text=data[data.find("\n\n")+2:])
         else:
             context.bot.send_message(chat_id=update.effective_chat.id, text="No data available.")
     else:
@@ -175,7 +170,9 @@ def get_user_profile(connection, user_id):
 def get_all_data(connection):
     cursor = connection.cursor()
     cursor.execute("""
-        SELECT message FROM logs;
+        SELECT DISTINCT ON (user_id) message
+        FROM logs
+        ORDER BY user_id, id DESC;
     """)
     result = cursor.fetchall()
     cursor.close()
