@@ -141,6 +141,7 @@ def insert_refer(connection, user_id, referral_name):
     cursor.close()
 
 
+
 # Rmrefer command handler
 def rm_refer_command(update: Update, context: CallbackContext):
     if update.message.reply_to_message is None:
