@@ -3,7 +3,7 @@ import logging
 import datetime
 import psycopg2
 from telegram import Bot, Update
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
 # Telegram bot token
 bot_token = os.environ.get('BOT_TOKEN')
@@ -22,11 +22,11 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=lo
 logger = logging.getLogger(__name__)
 
 # Start command handler
-def start_command(update: Update, context: CallbackContext):
+def start_command(update: Update, context):
     context.bot.send_message(chat_id=update.effective_chat.id, text="Welcome to the subscription bot!")
 
 # Paid command handler
-def paid_command(update: Update, context: CallbackContext):
+def paid_command(update: Update, context):
     if update.message.reply_to_message is None:
         context.bot.send_message(chat_id=update.effective_chat.id, text="Please reply to a user's message to process the payment.")
         return
@@ -75,8 +75,12 @@ def paid_command(update: Update, context: CallbackContext):
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
+        # Check if the subscription has expired
+        if is_subscription_expired(user_id):
+            notify_subscription_expired(user_id)
+
 # Profile command handler
-def profile_command(update: Update, context: CallbackContext):
+def profile_command(update: Update, context):
     replied_user_id = update.message.reply_to_message.from_user.id
 
     if update.message.from_user.id in approved_user_ids:
@@ -85,105 +89,138 @@ def profile_command(update: Update, context: CallbackContext):
         conn.close()
 
         if profile:
-            context.bot.send_message(chat_id=update.effective_chat.id, text=profile)
+            context.bot.send_message(chat_id=update.effective_chat.id, text=profile[profile.find("\n\n")+2:])
         else:
-            context.bot.send_message(chat_id=update.effective_chat.id, text="User profile not found.")
+            context.bot.send_message(chat_id=update.effective_chat.id, text="No profile data found for the user.")
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
-# Helper function to insert log into the database
-def insert_log(connection, user_id, log_message):
+# Check data command handler
+def check_data_command(update: Update, context):
+    if update.message.from_user.id in approved_user_ids:
+        conn = psycopg2.connect(db_url)
+        data = get_all_data(conn)
+        conn.close()
+
+        if data:
+            context.bot.send_message(chat_id=update.effective_chat.id, text=data[data.find("\n\n")+2:])
+        else:
+            context.bot.send_message(chat_id=update.effective_chat.id, text="No data available.")
+    else:
+        context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
+
+# Clear all command handler
+def clear_all_command(update: Update, context):
+    if update.message.from_user.id in approved_user_ids:
+        chat_id = update.effective_chat.id
+
+        # Delete all messages in the chat
+        context.bot.delete_chat(chat_id)
+
+        # Leave the chat
+        context.bot.leave_chat(chat_id)
+
+    else:
+        context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
+
+# Error handler
+def error(update: Update, context):
+    logger.warning(f"Update {update} caused error {context.error}")
+
+def main():
+    # Create the Telegram Updater and pass in the bot's token
+    updater = Updater(bot_token)
+
+    # Get the dispatcher to register handlers
+    dispatcher = updater.dispatcher
+
+    # Register command handlers
+    dispatcher.add_handler(CommandHandler("start", start_command))
+    dispatcher.add_handler(CommandHandler("paid", paid_command))
+    dispatcher.add_handler(CommandHandler("profile", profile_command))
+    dispatcher.add_handler(CommandHandler("check_data", check_data_command))
+    dispatcher.add_handler(CommandHandler("clearall", clear_all_command))
+
+    # Register error handler
+    dispatcher.add_error_handler(error)
+
+    # Connect to the database
+    conn = psycopg2.connect(db_url)
+
+    # Create the "logs" table if it doesn't exist
+    create_logs_table(conn)
+
+    # Start the bot
+    updater.start_polling()
+
+    # Run the bot until Ctrl-C is pressed
+    updater.idle()
+
+def create_logs_table(connection):
     cursor = connection.cursor()
     cursor.execute("""
-        INSERT INTO logs (user_id, message) VALUES (%s, %s);
-    """, (user_id, log_message))
+        CREATE TABLE IF NOT EXISTS logs (
+            id SERIAL PRIMARY KEY,
+            user_id BIGINT,
+            message TEXT
+        );
+    """)
     connection.commit()
     cursor.close()
 
-# Helper function to retrieve user profile from the database
+def insert_log(connection, user_id, message):
+    cursor = connection.cursor()
+    cursor.execute("""
+        INSERT INTO logs (user_id, message)
+        VALUES (%s, %s);
+    """, (user_id, message))
+    connection.commit()
+    cursor.close()
+
 def get_user_profile(connection, user_id):
     cursor = connection.cursor()
     cursor.execute("""
-        SELECT message FROM logs WHERE user_id = %s;
+        SELECT message FROM logs WHERE user_id = %s ORDER BY id DESC LIMIT 1;
     """, (user_id,))
-    profile = cursor.fetchone()
+    result = cursor.fetchone()
     cursor.close()
+    return result[0] if result else None
+
+def get_all_data(connection):
+    cursor = connection.cursor()
+    cursor.execute("""
+        SELECT message FROM logs;
+    """)
+    result = cursor.fetchall()
+    cursor.close()
+    return '\n\n'.join([row[0] for row in result])
+
+def is_subscription_expired(user_id):
+    conn = psycopg2.connect(db_url)
+    profile = get_user_profile(conn, user_id)
+    conn.close()
 
     if profile:
-        return profile[0]
+        last_subscription_date = parse_subscription_date(profile)
+        current_date = datetime.datetime.now().date()
+        return last_subscription_date < current_date
     else:
-        return None
+        return False
 
-# Addrefer command handler
-def add_refer_command(update: Update, context: CallbackContext):
-    if update.message.reply_to_message is None:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="Please reply to a user's message to add a referral.")
-        return
+def notify_subscription_expired(user_id):
+    conn = psycopg2.connect(db_url)
+    profile = get_user_profile(conn, user_id)
+    conn.close()
 
-    replied_user_id = update.message.reply_to_message.from_user.id
-    referral_name = update.message.text.strip().split()[1]  # Extract the referral name from the command
-
-    if update.message.from_user.id in approved_user_ids:
-        conn = psycopg2.connect(db_url)
-        insert_refer(conn, replied_user_id, referral_name)
-        conn.close()
-
-        context.bot.send_message(chat_id=update.effective_chat.id, text="Referral added successfully.")
+    if profile:
+        context.bot.send_message(chat_id=log_group_id, text=f"Subscription expired for user ID: {user_id}\n\n{profile}")
     else:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
+        context.bot.send_message(chat_id=log_group_id, text=f"Subscription expired for user ID: {user_id}")
 
-def insert_refer(connection, user_id, referral_name):
-    cursor = connection.cursor()
-    cursor.execute("""
-        UPDATE logs SET referrals = COALESCE(referrals, '') || %s WHERE user_id = %s;
-    """, (referral_name, user_id))
-    connection.commit()
-    cursor.close()
+def parse_subscription_date(profile):
+    date_line = profile.splitlines()[-1]
+    date_str = date_line.split(":")[1].strip()
+    return datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
 
-
-
-# Rmrefer command handler
-def rm_refer_command(update: Update, context: CallbackContext):
-    if update.message.reply_to_message is None:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="Please reply to a user's message to remove a referral.")
-        return
-
-    replied_user_id = update.message.reply_to_message.from_user.id
-
-    if update.message.from_user.id in approved_user_ids:
-        conn = psycopg2.connect(db_url)
-        remove_refer(conn, replied_user_id)
-        conn.close()
-
-        context.bot.send_message(chat_id=update.effective_chat.id, text="Referral removed successfully.")
-    else:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
-
-# Helper function to remove referral from the database
-def remove_refer(connection, user_id):
-    cursor = connection.cursor()
-    cursor.execute("""
-        UPDATE logs SET referrals = NULL WHERE user_id = %s;
-    """, (user_id,))
-    connection.commit()
-    cursor.close()
-
-# Error handler
-def error_handler(update: Update, context: CallbackContext):
-    logger.error(msg="Exception occurred", exc_info=context.error)
-
-# Create the Telegram bot and set up the handlers
-bot = Bot(token=bot_token)
-updater = Updater(bot=bot, use_context=True)
-dispatcher = updater.dispatcher
-
-dispatcher.add_handler(CommandHandler("start", start_command))
-dispatcher.add_handler(CommandHandler("paid", paid_command))
-dispatcher.add_handler(CommandHandler("profile", profile_command))
-dispatcher.add_handler(CommandHandler("addrefer", add_refer_command))
-dispatcher.add_handler(CommandHandler("rmrefer", rm_refer_command))
-dispatcher.add_error_handler(error_handler)
-
-# Start the bot
-updater.start_polling()
-updater.idle()
+if __name__ == '__main__':
+    main()
