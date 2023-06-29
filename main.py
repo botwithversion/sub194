@@ -105,6 +105,45 @@ def check_data_command(update: Update, context):
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
+# Add refer command handler
+def add_refer_command(update: Update, context):
+    if update.message.reply_to_message is None:
+        context.bot.send_message(chat_id=update.effective_chat.id, text="Please reply to a user's message to add them as a referral.")
+        return
+
+    replied_user_id = update.message.reply_to_message.from_user.id
+    referred_name = update.message.text.strip().split(maxsplit=1)[1]
+
+    if update.message.from_user.id in approved_user_ids:
+        conn = psycopg2.connect(db_url)
+        add_refer(conn, replied_user_id, referred_name)
+        conn.close()
+
+        context.bot.send_message(chat_id=update.effective_chat.id, text=f"Added {referred_name} as a referral for the user.")
+    else:
+        context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
+
+# Remove refer command handler
+def remove_refer_command(update: Update, context: CallbackContext):
+    if update.message.reply_to_message is None:
+        context.bot.send_message(chat_id=update.effective_chat.id, text="Please reply to a user's message to remove a referral.")
+        return
+
+    replied_user_id = update.message.reply_to_message.from_user.id
+    referred_name = update.message.text.strip().split(maxsplit=1)[1]
+
+    if update.message.from_user.id in approved_user_ids:
+        conn = psycopg2.connect(db_url)
+        removed = remove_refer(conn, replied_user_id, referred_name)
+        conn.close()
+
+        if removed:
+            context.bot.send_message(chat_id=update.effective_chat.id, text=f"Removed {referred_name} as a referral for the user.")
+        else:
+            context.bot.send_message(chat_id=update.effective_chat.id, text=f"The user does not have a referral named {referred_name}.")
+    else:
+        context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
+
 # Clear all command handler
 def clear_all_command(update: Update, context):
     if update.message.from_user.id in approved_user_ids:
@@ -135,6 +174,8 @@ def main():
     dispatcher.add_handler(CommandHandler("paid", paid_command))
     dispatcher.add_handler(CommandHandler("profile", profile_command))
     dispatcher.add_handler(CommandHandler("check_data", check_data_command))
+    dispatcher.add_handler(CommandHandler("addrefer", add_refer_command))
+    dispatcher.add_handler(CommandHandler("rmrefer", remove_refer_command))
     dispatcher.add_handler(CommandHandler("clearall", clear_all_command))
 
     # Register error handler
@@ -190,6 +231,47 @@ def get_all_data(connection):
     result = cursor.fetchall()
     cursor.close()
     return '\n\n'.join([row[0] for row in result])
+
+def add_refer(connection, user_id, referred_name):
+    cursor = connection.cursor()
+    cursor.execute("""
+        SELECT message FROM logs WHERE user_id = %s ORDER BY id DESC LIMIT 1;
+    """, (user_id,))
+    result = cursor.fetchone()
+    if result:
+        profile = result[0]
+        if "Referrals:" not in profile:
+            profile += "\n\nReferrals:"
+        profile += f" {referred_name}"
+        cursor.execute("""
+            UPDATE logs SET message = %s WHERE id = %s;
+        """, (profile, result[0]))
+        connection.commit()
+    cursor.close()
+
+def remove_refer(connection, user_id, referred_name):
+    cursor = connection.cursor()
+    cursor.execute("""
+        SELECT message FROM logs WHERE user_id = %s ORDER BY id DESC LIMIT 1;
+    """, (user_id,))
+    result = cursor.fetchone()
+    if result:
+        profile = result[0]
+        if "Referrals:" in profile:
+            referrals_start_index = profile.find("Referrals:")
+            referrals_end_index = profile.find("\n", referrals_start_index)
+            referrals = profile[referrals_start_index:referrals_end_index].split()[1:]
+            if referred_name in referrals:
+                referrals.remove(referred_name)
+                new_profile = profile[:referrals_start_index] + " Referrals:" + " ".join(referrals) + profile[referrals_end_index:]
+                cursor.execute("""
+                    UPDATE logs SET message = %s WHERE id = %s;
+                """, (new_profile, result[0]))
+                connection.commit()
+                cursor.close()
+                return True
+    cursor.close()
+    return False
 
 if __name__ == '__main__':
     main()
