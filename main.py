@@ -132,14 +132,14 @@ def add_refer_command(update: Update, context: CallbackContext):
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
-# Helper function to insert referral name into the database
 def insert_refer(connection, user_id, referral_name):
     cursor = connection.cursor()
     cursor.execute("""
-        UPDATE logs SET referrals = COALESCE(referrals || ', ', '') || %s WHERE user_id = %s;
+        UPDATE logs SET referrals = COALESCE(referrals, '') || %s WHERE user_id = %s;
     """, (referral_name, user_id))
     connection.commit()
     cursor.close()
+
 
 # Rmrefer command handler
 def rm_refer_command(update: Update, context: CallbackContext):
