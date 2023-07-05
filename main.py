@@ -123,6 +123,20 @@ def clear_all_command(update: Update, context):
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
+def expired_command(update: Update, context):
+    conn = psycopg2.connect(db_url)
+    expiring_users = get_expiring_users(conn)
+    conn.close()
+
+    if expiring_users:
+        message = "Expiring subscriptions:\n\n"
+        for user_id in expiring_users:
+            message += f"User ID: {user_id}\n"
+        context.bot.send_message(chat_id=update.effective_chat.id, text=message)
+    else:
+        context.bot.send_message(chat_id=update.effective_chat.id, text="No subscriptions expiring today.")
+
+
 # Error handler
 def error(update: Update, context):
     logger.warning(f"Update {update} caused error {context.error}")
@@ -140,6 +154,7 @@ def main():
     dispatcher.add_handler(CommandHandler("profile", profile_command))
     dispatcher.add_handler(CommandHandler("check_data", check_data_command))
     dispatcher.add_handler(CommandHandler("clearall", clear_all_command))
+    dispatcher.add_handler(CommandHandler("expired", expired_command))
 
     # Register error handler
     dispatcher.add_error_handler(error)
@@ -221,6 +236,30 @@ def parse_subscription_date(profile):
     date_line = profile.splitlines()[-1]
     date_str = date_line.split(":")[1].strip()
     return datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
+
+def get_expiring_users(conn):
+    cursor = conn.cursor()
+    today = datetime.datetime.now().date()
+    cursor.execute(
+        """
+        SELECT user_id
+        FROM logs
+        WHERE DATE(message) = %s
+        """,
+        (today,)
+    )
+    expiring_users = cursor.fetchall()
+    return [user[0] for user in expiring_users]
+
+# ...
+
+if __name__ == '__main__':
+    main()
+
+Make sure to replace the placeholder variables 'BOT_TOKEN', 'LOG_GROUP_ID', 'APPROVED_USER_IDS', and 'DATABASE_URL' with your actual values.
+
+Let me know if you encounter any issues or need further assistance!
+
 
 if __name__ == '__main__':
     main()
