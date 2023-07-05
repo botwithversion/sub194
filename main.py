@@ -218,12 +218,11 @@ def get_expiring_subscriptions(connection):
     cursor = connection.cursor()
     current_date = datetime.datetime.now().strftime("%Y-%m-%d")
     cursor.execute("""
-        SELECT user_id FROM logs WHERE DATE(message::timestamp) = %s + INTERVAL '1 DAY';
+        SELECT user_id FROM logs WHERE DATE_TRUNC('day', message::timestamp) = DATE %s + INTERVAL '1 DAY';
     """, (current_date,))
     result = cursor.fetchall()
     cursor.close()
     return [row[0] for row in result]
-
 
 
 if __name__ == '__main__':
