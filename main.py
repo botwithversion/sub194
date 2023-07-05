@@ -213,6 +213,7 @@ def get_all_data(connection):
     return '\n\n'.join([row[0] for row in result])
 
 
+
 def get_expiring_subscriptions(connection):
     cursor = connection.cursor()
     current_date = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -222,6 +223,7 @@ def get_expiring_subscriptions(connection):
     result = cursor.fetchall()
     cursor.close()
     return result
+
 
 
 
