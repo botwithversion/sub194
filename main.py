@@ -244,7 +244,7 @@ def get_expiring_users(conn):
         """
         SELECT user_id
         FROM logs
-        WHERE DATE(message) = %s
+        WHERE message LIKE 'User ID:%' AND message::date = %s
         """,
         (today,)
     )
