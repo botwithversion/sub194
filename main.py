@@ -211,8 +211,8 @@ def get_expired_subscriptions(connection):
     cursor = connection.cursor()
     current_date = datetime.datetime.now().strftime("%Y-%m-%d")
     cursor.execute("""
-        SELECT user_id, message FROM logs WHERE message LIKE 'Valid Till: {}%';
-    """.format(current_date))
+        SELECT user_id, message FROM logs WHERE message LIKE 'Valid Till: %' AND message <= %s;
+    """, (current_date,))
     result = cursor.fetchall()
     cursor.close()
     return result
