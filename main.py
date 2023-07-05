@@ -25,8 +25,6 @@ logger = logging.getLogger(__name__)
 def start_command(update: Update, context):
     context.bot.send_message(chat_id=update.effective_chat.id, text="Welcome to the subscription bot!")
 
-# Paid command handler
-# Paid command handler
 def paid_command(update: Update, context):
     if update.message.reply_to_message is None:
         context.bot.send_message(chat_id=update.effective_chat.id, text="Please reply to a user's message to process the payment.")
@@ -68,7 +66,7 @@ def paid_command(update: Update, context):
         output_message += f"Valid Till: {expire_date}"
 
         conn = psycopg2.connect(db_url)
-        delete_user_logs(conn, user_id)  # Delete old user logs
+        delete_user_logs(context.bot, log_group_id, user_id)  # Delete old user logs
         insert_log(conn, user_id, output_message)
         conn.close()
 
@@ -78,13 +76,10 @@ def paid_command(update: Update, context):
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
 # Delete user logs
-def delete_user_logs(connection, user_id):
-    cursor = connection.cursor()
-    cursor.execute("""
-        DELETE FROM logs WHERE user_id = %s;
-    """, (user_id,))
-    connection.commit()
-    cursor.close()
+def delete_user_logs(bot: Bot, log_group_id: str, user_id: int):
+    messages = bot.get_chat(log_group_id).get_member(user_id).user.messages
+    for message in messages:
+        bot.delete_message(log_group_id, message.message_id)
 
 
 # Profile command handler
