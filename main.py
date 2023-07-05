@@ -68,13 +68,8 @@ def paid_command(update: Update, context):
         output_message += f"Valid Till: {expire_date}"
 
         conn = psycopg2.connect(db_url)
-
-        # Delete old message of the user from the log
-        delete_user_logs(conn, user_id)
-
-        # Insert the new message in the log
+        delete_user_logs(conn, user_id)  # Delete old user logs
         insert_log(conn, user_id, output_message)
-
         conn.close()
 
         context.bot.send_message(chat_id=update.effective_chat.id, text="Payment processed successfully.")
@@ -82,7 +77,7 @@ def paid_command(update: Update, context):
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
-# Delete old message of a user from the log
+# Delete user logs
 def delete_user_logs(connection, user_id):
     cursor = connection.cursor()
     cursor.execute("""
@@ -90,6 +85,7 @@ def delete_user_logs(connection, user_id):
     """, (user_id,))
     connection.commit()
     cursor.close()
+
 
 # Profile command handler
 def profile_command(update: Update, context):
