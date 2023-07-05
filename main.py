@@ -251,15 +251,6 @@ def get_expiring_users(conn):
     expiring_users = cursor.fetchall()
     return [user[0] for user in expiring_users]
 
-# ...
-
-if __name__ == '__main__':
-    main()
-
-Make sure to replace the placeholder variables 'BOT_TOKEN', 'LOG_GROUP_ID', 'APPROVED_USER_IDS', and 'DATABASE_URL' with your actual values.
-
-Let me know if you encounter any issues or need further assistance!
-
 
 if __name__ == '__main__':
     main()
