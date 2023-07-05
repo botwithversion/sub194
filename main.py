@@ -186,6 +186,8 @@ def create_logs_table(connection):
     connection.commit()
     cursor.close()
 
+import re
+
 def handle_message(update):
     message = update['message']
     if 'text' in message:
@@ -212,6 +214,10 @@ def handle_message(update):
                 username = match.group(2)
                 start_date = match.group(3)
                 end_date = match.group(4)
+                print(f"User ID: {user_id}")
+                print(f"Username: {username}")
+                print(f"Start Date: {start_date}")
+                print(f"End Date: {end_date}")
                 save_subscription_details(connection, user_id, username, start_date, end_date)
 
 def insert_log(connection, user_id, message):
