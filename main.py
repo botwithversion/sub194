@@ -218,7 +218,12 @@ def is_subscription_expired(user_id):
     if profile:
         last_subscription_date = parse_subscription_date(profile)
         current_date = datetime.datetime.now().date()
-        return last_subscription_date < current_date
+        expire_date = parse_expire_date(profile)
+
+        if current_date == expire_date:
+            return True
+        else:
+            return False
     else:
         return False
 
