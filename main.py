@@ -113,8 +113,9 @@ def subscription_expired_command(update: Update, context):
         conn.close()
 
         if expired_subscriptions:
-            for user_id, profile in expired_subscriptions:
-                context.bot.send_message(chat_id=update.effective_chat.id, text=f"Subscription expired for user ID: {user_id}\n\n{profile}")
+            for subscription in expired_subscriptions:
+                user_id, message = subscription
+                context.bot.send_message(chat_id=update.effective_chat.id, text=message)
         else:
             context.bot.send_message(chat_id=update.effective_chat.id, text="No expired subscriptions found.")
     else:
@@ -215,7 +216,9 @@ def get_expired_subscriptions(connection):
     """, (current_date,))
     result = cursor.fetchall()
     cursor.close()
+
     return result
+
 
 
 if __name__ == '__main__':
