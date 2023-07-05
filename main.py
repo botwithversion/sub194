@@ -75,10 +75,6 @@ def paid_command(update: Update, context):
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
-        # Check if the subscription has expired
-        if is_subscription_expired(user_id):
-            notify_subscription_expired(user_id)
-
 # Profile command handler
 def profile_command(update: Update, context):
     replied_user_id = update.message.reply_to_message.from_user.id
@@ -153,6 +149,10 @@ def main():
     # Start the bot
     updater.start_polling()
 
+    # Schedule daily subscription expiry check
+    job_queue = updater.job_queue
+    job_queue.run_daily(check_subscription_expiry, time=datetime.time(hour=0, minute=0, second=0))
+
     # Run the bot until Ctrl-C is pressed
     updater.idle()
 
@@ -195,32 +195,25 @@ def get_all_data(connection):
     cursor.close()
     return '\n\n'.join([row[0] for row in result])
 
-def is_subscription_expired(user_id):
+def check_subscription_expiry(context):
     conn = psycopg2.connect(db_url)
-    profile = get_user_profile(conn, user_id)
+    expired_users = get_expired_subscriptions(conn)
     conn.close()
 
-    if profile:
-        last_subscription_date = parse_subscription_date(profile)
-        current_date = datetime.datetime.now().date()
-        return last_subscription_date < current_date
-    else:
-        return False
+    for user_id, username in expired_users:
+        message = f"Subscription expired for user: {user_id}"
+        if username:
+            message += f" (@{username})"
+        context.bot.send_message(chat_id=log_group_id, text=message)
 
-def notify_subscription_expired(user_id):
-    conn = psycopg2.connect(db_url)
-    profile = get_user_profile(conn, user_id)
-    conn.close()
-
-    if profile:
-        context.bot.send_message(chat_id=log_group_id, text=f"Subscription expired for user ID: {user_id}\n\n{profile}")
-    else:
-        context.bot.send_message(chat_id=log_group_id, text=f"Subscription expired for user ID: {user_id}")
-
-def parse_subscription_date(profile):
-    date_line = profile.splitlines()[-1]
-    date_str = date_line.split(":")[1].strip()
-    return datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
+def get_expired_subscriptions(connection):
+    cursor = connection.cursor()
+    cursor.execute("""
+        SELECT user_id, message FROM logs WHERE message LIKE 'Valid Till: %s' AND DATE(message::timestamp) = CURRENT_DATE;
+    """, (datetime.datetime.now().strftime("%Y-%m-%d"),))
+    result = cursor.fetchall()
+    cursor.close()
+    return [(row[0], row[1][row[1].find("@")+1:].strip()) for row in result]
 
 if __name__ == '__main__':
     main()
