@@ -119,6 +119,26 @@ def clear_all_command(update: Update, context):
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
+# Expiring command handler
+def expiring_command(update: Update, context):
+    if update.message.from_user.id in approved_user_ids:
+        conn = psycopg2.connect(db_url)
+        expiring_users = get_expiring_subscriptions(conn)
+        conn.close()
+
+        if expiring_users:
+            message = "Subscriptions expiring today:\n\n"
+            for user_id, username in expiring_users:
+                message += f"User ID: {user_id}"
+                if username:
+                    message += f" (@{username})"
+                message += "\n"
+            context.bot.send_message(chat_id=update.effective_chat.id, text=message)
+        else:
+            context.bot.send_message(chat_id=update.effective_chat.id, text="No subscriptions expiring today.")
+    else:
+        context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
+
 # Error handler
 def error(update: Update, context):
     logger.warning(f"Update {update} caused error {context.error}")
@@ -136,6 +156,7 @@ def main():
     dispatcher.add_handler(CommandHandler("profile", profile_command))
     dispatcher.add_handler(CommandHandler("check_data", check_data_command))
     dispatcher.add_handler(CommandHandler("clearall", clear_all_command))
+    dispatcher.add_handler(CommandHandler("expiring", expiring_command))
 
     # Register error handler
     dispatcher.add_error_handler(error)
@@ -148,10 +169,6 @@ def main():
 
     # Start the bot
     updater.start_polling()
-
-    # Schedule daily subscription expiry check
-    job_queue = updater.job_queue
-    job_queue.run_daily(check_subscription_expiry, time=datetime.time(hour=0, minute=0, second=0))
 
     # Run the bot until Ctrl-C is pressed
     updater.idle()
@@ -195,25 +212,15 @@ def get_all_data(connection):
     cursor.close()
     return '\n\n'.join([row[0] for row in result])
 
-def check_subscription_expiry(context):
-    conn = psycopg2.connect(db_url)
-    expired_users = get_expired_subscriptions(conn)
-    conn.close()
-
-    for user_id, username in expired_users:
-        message = f"Subscription expired for user: {user_id}"
-        if username:
-            message += f" (@{username})"
-        context.bot.send_message(chat_id=log_group_id, text=message)
-
-def get_expired_subscriptions(connection):
+def get_expiring_subscriptions(connection):
     cursor = connection.cursor()
+    current_date = datetime.datetime.now().strftime("%Y-%m-%d")
     cursor.execute("""
-        SELECT user_id, message FROM logs WHERE message LIKE 'Valid Till: %s' AND DATE(message::timestamp) = CURRENT_DATE;
-    """, (datetime.datetime.now().strftime("%Y-%m-%d"),))
+        SELECT user_id, username FROM logs WHERE SUBSTRING(message, 'Valid Till: (\d{4}-\d{2}-\d{2})') = %s;
+    """, (current_date,))
     result = cursor.fetchall()
     cursor.close()
-    return [(row[0], row[1][row[1].find("@")+1:].strip()) for row in result]
+    return result
 
 if __name__ == '__main__':
     main()
