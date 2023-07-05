@@ -84,6 +84,7 @@ def get_user_log_message_id(connection, user_id):
     cursor.close()
     return result[0] if result else None
 
+
 # Profile command handler
 def profile_command(update: Update, context):
     replied_user_id = update.message.reply_to_message.from_user.id
