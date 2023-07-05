@@ -185,6 +185,26 @@ def create_logs_table(connection):
     connection.commit()
     cursor.close()
 
+def handle_message(update):
+    message = update['message']
+    if 'text' in message:
+        text = message['text']
+        if text == '/expiring':
+            expiring_subscriptions = get_expiring_subscriptions(connection)
+            response_text = "Subscriptions expiring today:\n"
+            for user_id in expiring_subscriptions:
+                response_text += f"- User ID: {user_id}\n"
+            send_message(response_text)
+        elif text == '/profile':
+            user_id = message['from']['id']
+            user_profile = get_user_profile(connection, user_id)
+            if user_profile:
+                response_text = f"User Profile:\n- User ID: {user_profile['user_id']}\n- Username: {user_profile['username']}\n- Subscription Start: {user_profile['start_date']}\n- Valid Till: {user_profile['end_date']}"
+            else:
+                response_text = "User profile not found."
+            send_message(response_text)
+
+
 def insert_log(connection, user_id, message):
     cursor = connection.cursor()
     cursor.execute("""
@@ -197,11 +217,19 @@ def insert_log(connection, user_id, message):
 def get_user_profile(connection, user_id):
     cursor = connection.cursor()
     cursor.execute("""
-        SELECT message FROM logs WHERE user_id = %s ORDER BY id DESC LIMIT 1;
+        SELECT user_id, username, start_date, end_date FROM logs WHERE user_id = %s;
     """, (user_id,))
     result = cursor.fetchone()
     cursor.close()
-    return result[0] if result else None
+    if result:
+        return {
+            'user_id': result[0],
+            'username': result[1],
+            'start_date': result[2].date(),
+            'end_date': result[3].date()
+        }
+    else:
+        return None
 
 def get_all_data(connection):
     cursor = connection.cursor()
