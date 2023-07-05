@@ -224,5 +224,6 @@ def get_expiring_subscriptions(connection):
     return result
 
 
+
 if __name__ == '__main__':
     main()
