@@ -222,7 +222,8 @@ def get_expiring_subscriptions(connection):
     """, (current_date,))
     result = cursor.fetchall()
     cursor.close()
-    return result
+    return [row[0] for row in result]
+
 
 
 
