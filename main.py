@@ -24,86 +24,56 @@ logger = logging.getLogger(__name__)
 # Start command handler
 def start_command(update: Update, context):
     context.bot.send_message(chat_id=update.effective_chat.id, text="Welcome to the subscription bot!")
-    
-from telegram import ParseMode
 
-# ...
-
-from telegram import ParseMode
-
-# ...
-
+# Paid command handler
 def paid_command(update: Update, context):
-    message = update.message
-    user_id = message.reply_to_message.from_user.id
-    amount = message.text.split()[1]
+    if update.message.reply_to_message is None:
+        context.bot.send_message(chat_id=update.effective_chat.id, text="Please reply to a user's message to process the payment.")
+        return
 
-    conn = psycopg2.connect(db_url)
+    replied_user = update.message.reply_to_message.from_user
+    user_id = replied_user.id
+    username = replied_user.username
+    first_name = replied_user.first_name
+    message_text = update.message.text.strip().split()
 
-    # Delete old user logs and get the log message ID
-    log_message_id = delete_user_logs(conn, user_id)
+    if len(message_text) < 2:
+        context.bot.send_message(chat_id=update.effective_chat.id, text="Please specify the payment amount and validity period.")
+        return
 
-    output_message = "THANKS FOR YOUR SUBSCRIPTION\n"
-    output_message += f"User ID: {user_id}\n\n"
+    payment_amount = ''.join(filter(str.isdigit, message_text[1]))  # Extract the payment amount
 
-    if message.reply_to_message.from_user.username:
-        output_message += f"Username: @{message.reply_to_message.from_user.username}\n\n"
-    elif message.reply_to_message.from_user.first_name:
-        output_message += f"First Name: {message.reply_to_message.from_user.first_name}\n\n"
+    # Extract the validity period from the message
+    validity_period = 1  # Default validity period is 1 day
+    for word in message_text[2:]:
+        if word.isdigit():
+            validity_period = int(word)
+            break
 
-    current_date = datetime.datetime.now().strftime("%Y-%m-%d")
-    expire_date = (datetime.datetime.now() + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+    if update.message.from_user.id in approved_user_ids:
+        output_message = "THANKS FOR YOUR SUBSCRIPTION\n"
+        output_message += f"User ID: {user_id}\n\n"
 
-    output_message += f"Amount: {amount} USD\n"
-    output_message += f"Subscription Start: {current_date}\n"
-    output_message += f"Valid Till: {expire_date}"
+        if username:
+            output_message += f"Username: @{username}\n\n"
+        elif first_name:
+            output_message += f"First Name: {first_name}\n\n"
 
-    delete_user_logs(conn, user_id)  # Delete old user logs
-    insert_log(conn, user_id, output_message)
-    conn.close()
+        current_date = datetime.datetime.now().strftime("%Y-%m-%d")
+        expire_date = (datetime.datetime.now() + datetime.timedelta(days=validity_period)).strftime("%Y-%m-%d")
 
-    context.bot.send_message(chat_id=update.effective_chat.id, text="Payment processed successfully.")
-    log_message = context.bot.send_message(chat_id=log_group_id, text=output_message, parse_mode=ParseMode.HTML)
+        output_message += f"Amount: {payment_amount} USD\n"
+        output_message += f"Subscription Start: {current_date}\n"
+        output_message += f"Valid Till: {expire_date}"
 
-    # Delete the log message if there is a previous one
-    if log_message_id:
-        context.bot.delete_message(chat_id=log_group_id, message_id=log_message_id)
+        conn = psycopg2.connect(db_url)
+        insert_log(conn, user_id, output_message)
+        conn.close()
 
-    # Delete the /paid command message and the reply message
-    context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message.message_id)
-    context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message.reply_to_message.message_id)
-
-    # Delayed deletion of the log message after 24 hours
-    context.job_queue.run_once(
-        delete_log_message,
-        when=datetime.datetime.now() + datetime.timedelta(hours=24),
-        context={"chat_id": log_group_id, "message_id": log_message.message_id}
-    )
-
-def delete_log_message(context):
-    chat_id = context.job.context["chat_id"]
-    message_id = context.job.context["message_id"]
-    context.bot.delete_message(chat_id=chat_id, message_id=message_id)
-
-# Delete user logs
-def delete_user_logs(connection, user_id):
-    cursor = connection.cursor()
-    cursor.execute("""
-        SELECT message FROM logs WHERE user_id = %s ORDER BY id DESC LIMIT 1;
-    """, (user_id,))
-    result = cursor.fetchone()
-    log_message_id = None
-    if result:
-        log_message_id = result[0]
-        cursor.execute("""
-            DELETE FROM logs WHERE user_id = %s;
-        """, (user_id,))
-        connection.commit()
-    cursor.close()
-    return log_message_id
-
-
-
+        context.bot.send_message(chat_id=update.effective_chat.id, text="Payment processed successfully.")
+        context.bot.send_message(chat_id=log_group_id, text=output_message)
+    else:
+        context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
 # Profile command handler
 def profile_command(update: Update, context):
