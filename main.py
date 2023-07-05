@@ -216,11 +216,12 @@ def get_expiring_subscriptions(connection):
     cursor = connection.cursor()
     current_date = datetime.datetime.now().strftime("%Y-%m-%d")
     cursor.execute("""
-        SELECT user_id, username FROM logs WHERE SUBSTRING(message, 'Valid Till: (\d{4}-\d{2}-\d{2})') = %s;
+        SELECT user_id FROM logs WHERE SUBSTRING(message, 'Valid Till: (\d{4}-\d{2}-\d{2})') = %s;
     """, (current_date,))
     result = cursor.fetchall()
     cursor.close()
     return result
+
 
 if __name__ == '__main__':
     main()
