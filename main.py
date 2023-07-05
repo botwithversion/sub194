@@ -75,14 +75,16 @@ def paid_command(update: Update, context):
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
-def get_user_log_message_id(connection, user_id):
+# Delete user logs
+def delete_user_logs(connection, user_id):
     cursor = connection.cursor()
+    log_message_id = get_user_log_message_id(connection, user_id)  # Get the log message ID
     cursor.execute("""
-        SELECT message_id FROM logs WHERE user_id = %s ORDER BY id DESC LIMIT 1;
+        DELETE FROM logs WHERE user_id = %s;
     """, (user_id,))
-    result = cursor.fetchone()
+    connection.commit()
     cursor.close()
-    return result[0] if result else None
+    return log_message_id
 
 
 # Profile command handler
