@@ -24,8 +24,9 @@ logger = logging.getLogger(__name__)
 # Start command handler
 def start_command(update: Update, context):
     context.bot.send_message(chat_id=update.effective_chat.id, text="Welcome to the subscription bot!")
-
+    
 def paid_command(update: Update, context):
+    log_message_id = delete_user_logs(user_id)  # Delete old user logs and get the log message ID
     if update.message.reply_to_message is None:
         context.bot.send_message(chat_id=update.effective_chat.id, text="Please reply to a user's message to process the payment.")
         return
@@ -76,15 +77,23 @@ def paid_command(update: Update, context):
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
 # Delete user logs
+# Delete user logs
 def delete_user_logs(connection, user_id):
     cursor = connection.cursor()
-    log_message_id = get_user_log_message_id(connection, user_id)  # Get the log message ID
     cursor.execute("""
-        DELETE FROM logs WHERE user_id = %s;
+        SELECT message FROM logs WHERE user_id = %s ORDER BY id DESC LIMIT 1;
     """, (user_id,))
-    connection.commit()
+    result = cursor.fetchone()
+    log_message_id = None
+    if result:
+        log_message_id = result[0]
+        cursor.execute("""
+            DELETE FROM logs WHERE user_id = %s;
+        """, (user_id,))
+        connection.commit()
     cursor.close()
     return log_message_id
+
 
 
 # Profile command handler
