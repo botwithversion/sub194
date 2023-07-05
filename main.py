@@ -1,4 +1,5 @@
 import os
+import re
 import logging
 import datetime
 import psycopg2
@@ -203,7 +204,15 @@ def handle_message(update):
             else:
                 response_text = "User profile not found."
             send_message(response_text)
-
+        elif text.startswith('THANKS FOR YOUR SUBSCRIPTION'):
+            pattern = r"User ID: (\d+)\n\nUsername: @(\w+)\n\nAmount: \d+ USD\nSubscription Start: (\d{4}-\d{2}-\d{2})\nValid Till: (\d{4}-\d{2}-\d{2})"
+            match = re.search(pattern, text, re.MULTILINE)
+            if match:
+                user_id = match.group(1)
+                username = match.group(2)
+                start_date = match.group(3)
+                end_date = match.group(4)
+                save_subscription_details(connection, user_id, username, start_date, end_date)
 
 def insert_log(connection, user_id, message):
     cursor = connection.cursor()
