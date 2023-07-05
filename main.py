@@ -75,19 +75,14 @@ def paid_command(update: Update, context):
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
-# Delete user logs
-def delete_user_logs(bot: Bot, chat_id: int, user_id: int):
-    # Retrieve the log message for the user
-    message_id = get_user_log_message_id(user_id)
-
-    # Check if a log message exists for the user
-    if message_id is not None:
-        # Delete the previous log message from the log group
-        try:
-            bot.delete_message(chat_id=chat_id, message_id=message_id)
-        except Exception as e:
-            logger.warning(f"Failed to delete log message: {e}")
-
+def get_user_log_message_id(connection, user_id):
+    cursor = connection.cursor()
+    cursor.execute("""
+        SELECT message_id FROM logs WHERE user_id = %s ORDER BY id DESC LIMIT 1;
+    """, (user_id,))
+    result = cursor.fetchone()
+    cursor.close()
+    return result[0] if result else None
 
 # Profile command handler
 def profile_command(update: Update, context):
