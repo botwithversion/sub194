@@ -104,6 +104,7 @@ def delete_user_logs(connection, user_id):
 
 
 
+
 # Profile command handler
 def profile_command(update: Update, context):
     replied_user_id = update.message.reply_to_message.from_user.id
