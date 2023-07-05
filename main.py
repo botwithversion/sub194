@@ -1,272 +1,166 @@
-import os
-import re
-import logging
-import datetime
 import psycopg2
-from telegram import Bot, Update
+from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
-# Telegram bot token
-bot_token = os.environ.get('BOT_TOKEN')
+bot_token = "YOUR_BOT_TOKEN"
+log_group_id = "LOG_GROUP_ID"
+approved_user_ids = [12345678, 87654321]  # Approved user IDs
+db_url = "YOUR_DATABASE_URL"
 
-# Log group ID
-log_group_id = os.environ.get('LOG_GROUP_ID')
-
-# List of approved user IDs
-approved_user_ids = [int(user_id) for user_id in os.environ.get('APPROVED_USER_IDS', '').split(',')]
-
-# Heroku Postgres database URL
-db_url = os.environ.get('DATABASE_URL')
-
-# Configure logging
-logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-# Start command handler
+# Start command
 def start_command(update: Update, context):
-    context.bot.send_message(chat_id=update.effective_chat.id, text="Welcome to the subscription bot!")
+    context.bot.send_message(chat_id=update.effective_chat.id, text="Welcome! Use /paid to register your subscription.")
 
-# Paid command handler
+# Paid command
 def paid_command(update: Update, context):
-    if update.message.reply_to_message is None:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="Please reply to a user's message to process the payment.")
-        return
+    user_id = update.message.from_user.id
+    username = update.message.from_user.username
+    start_date = update.message.date.strftime("%Y-%m-%d")
+    end_date = (update.message.date + timedelta(days=30)).strftime("%Y-%m-%d")
 
-    replied_user = update.message.reply_to_message.from_user
-    user_id = replied_user.id
-    username = replied_user.username
-    first_name = replied_user.first_name
-    message_text = update.message.text.strip().split()
+    conn = psycopg2.connect(db_url)
+    save_subscription_details(conn, user_id, username, start_date, end_date)
+    conn.close()
 
-    if len(message_text) < 2:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="Please specify the payment amount and validity period.")
-        return
+    context.bot.send_message(chat_id=update.effective_chat.id, text="Subscription registered successfully.")
 
-    payment_amount = ''.join(filter(str.isdigit, message_text[1]))  # Extract the payment amount
-
-    # Extract the validity period from the message
-    validity_period = 1  # Default validity period is 1 day
-    for word in message_text[2:]:
-        if word.isdigit():
-            validity_period = int(word)
-            break
-
-    if update.message.from_user.id in approved_user_ids:
-        output_message = "THANKS FOR YOUR SUBSCRIPTION\n"
-        output_message += f"User ID: {user_id}\n\n"
-
-        if username:
-            output_message += f"Username: @{username}\n\n"
-        elif first_name:
-            output_message += f"First Name: {first_name}\n\n"
-
-        current_date = datetime.datetime.now().strftime("%Y-%m-%d")
-        expire_date = (datetime.datetime.now() + datetime.timedelta(days=validity_period)).strftime("%Y-%m-%d")
-
-        output_message += f"Amount: {payment_amount} USD\n"
-        output_message += f"Subscription Start: {current_date}\n"
-        output_message += f"Valid Till: {expire_date}"
-
-        conn = psycopg2.connect(db_url)
-        insert_log(conn, user_id, output_message)
-        conn.close()
-
-        context.bot.send_message(chat_id=update.effective_chat.id, text="Payment processed successfully.")
-        context.bot.send_message(chat_id=log_group_id, text=output_message)
-    else:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
-
-# Profile command handler
+# Profile command
 def profile_command(update: Update, context):
-    replied_user_id = update.message.reply_to_message.from_user.id
+    user_id = update.message.from_user.id
 
-    if update.message.from_user.id in approved_user_ids:
+    if user_id in approved_user_ids:
         conn = psycopg2.connect(db_url)
-        profile = get_user_profile(conn, replied_user_id)
+        profile = get_user_profile(conn, user_id)
         conn.close()
 
         if profile:
-            context.bot.send_message(chat_id=update.effective_chat.id, text=profile[profile.find("\n\n")+2:])
+            context.bot.send_message(chat_id=update.effective_chat.id, text=profile)
         else:
-            context.bot.send_message(chat_id=update.effective_chat.id, text="No profile data found for the user.")
+            context.bot.send_message(chat_id=update.effective_chat.id, text="No subscription found for the user.")
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
-# Check data command handler
-def check_data_command(update: Update, context):
-    if update.message.from_user.id in approved_user_ids:
-        conn = psycopg2.connect(db_url)
-        data = get_all_data(conn)
-        conn.close()
-
-        if data:
-            context.bot.send_message(chat_id=update.effective_chat.id, text=data[data.find("\n\n")+2:])
-        else:
-            context.bot.send_message(chat_id=update.effective_chat.id, text="No data available.")
-    else:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
-
-# Clear all command handler
-def clear_all_command(update: Update, context):
-    if update.message.from_user.id in approved_user_ids:
-        chat_id = update.effective_chat.id
-
-        # Delete all messages in the chat
-        context.bot.delete_chat(chat_id)
-
-        # Leave the chat
-        context.bot.leave_chat(chat_id)
-
-    else:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
-
-# Expiring command handler
+# Expiring command
 def expiring_command(update: Update, context):
-    if update.message.from_user.id in approved_user_ids:
+    user_id = update.message.from_user.id
+
+    if user_id in approved_user_ids:
         conn = psycopg2.connect(db_url)
-        expiring_users = get_expiring_subscriptions(conn)
+        expiring_users = get_expiring_users(conn)
         conn.close()
 
         if expiring_users:
-            message = "Subscriptions expiring today:\n\n"
-            for user_id, username in expiring_users:
-                message += f"User ID: {user_id}"
-                if username:
-                    message += f" (@{username})"
-                message += "\n"
+            message = "Expiring subscriptions:\n\n"
+            for user in expiring_users:
+                message += f"Username: @{user[0]}\n"
+                message += f"End Date: {user[1]}\n\n"
             context.bot.send_message(chat_id=update.effective_chat.id, text=message)
         else:
-            context.bot.send_message(chat_id=update.effective_chat.id, text="No subscriptions expiring today.")
+            context.bot.send_message(chat_id=update.effective_chat.id, text="No expiring subscriptions found.")
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
-# Error handler
-def error(update: Update, context):
-    logger.warning(f"Update {update} caused error {context.error}")
+# Message handler
+def message_handler(update: Update, context):
+    if update.message.reply_to_message is not None and update.message.from_user.id in approved_user_ids:
+        replied_user_id = update.message.reply_to_message.from_user.id
+        user_id = update.message.from_user.id
+        message_text = update.message.text
 
-def main():
-    # Create the Telegram Updater and pass in the bot's token
-    updater = Updater(bot_token)
+        conn = psycopg2.connect(db_url)
+        profile = get_user_profile(conn, replied_user_id)
 
-    # Get the dispatcher to register handlers
-    dispatcher = updater.dispatcher
+        if profile:
+            log_message = f"User ID: {user_id}\n\nMessage:\n{message_text}"
+            insert_log(conn, user_id, log_message)
+            conn.close()
 
-    # Register command handlers
-    dispatcher.add_handler(CommandHandler("start", start_command))
-    dispatcher.add_handler(CommandHandler("paid", paid_command))
-    dispatcher.add_handler(CommandHandler("profile", profile_command))
-    dispatcher.add_handler(CommandHandler("check_data", check_data_command))
-    dispatcher.add_handler(CommandHandler("clearall", clear_all_command))
-    dispatcher.add_handler(CommandHandler("expiring", expiring_command))
+            context.bot.send_message(chat_id=update.effective_chat.id, text="Message logged successfully.")
+            context.bot.send_message(chat_id=log_group_id, text=log_message)
+        else:
+            conn.close()
+            context.bot.send_message(chat_id=update.effective_chat.id, text="No subscription found for the user.")
+    else:
+        context.bot.send_message(chat_id=update.effective_chat.id, text="You are not allowed to log messages.")
 
-    # Register error handler
-    dispatcher.add_error_handler(error)
+# Save subscription details
+def save_subscription_details(conn, user_id, username, start_date, end_date):
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        INSERT INTO subscriptions (user_id, username, start_date, end_date)
+        VALUES (%s, %s, %s, %s)
+        ON CONFLICT (user_id)
+        DO UPDATE SET username = excluded.username, start_date = excluded.start_date, end_date = excluded.end_date
+        """,
+        (user_id, username, start_date, end_date)
+    )
+    conn.commit()
 
-    # Connect to the database
-    conn = psycopg2.connect(db_url)
-
-    # Create the "logs" table if it doesn't exist
-    create_logs_table(conn)
-
-    # Start the bot
-    updater.start_polling()
-
-    # Run the bot until Ctrl-C is pressed
-    updater.idle()
-
-def create_logs_table(connection):
-    cursor = connection.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS logs (
-            id SERIAL PRIMARY KEY,
-            user_id BIGINT,
-            message TEXT
-        );
-    """)
-    connection.commit()
-    cursor.close()
-
-
-
-
-def insert_log(connection, user_id, message):
-    cursor = connection.cursor()
-    cursor.execute("""
-        INSERT INTO logs (user_id, message)
-        VALUES (%s, %s);
-    """, (user_id, message))
-    connection.commit()
-    cursor.close()
-
-def get_user_profile(connection, user_id):
-    cursor = connection.cursor()
-    cursor.execute("""
-        SELECT user_id, username, start_date, end_date FROM logs WHERE user_id = %s;
-    """, (user_id,))
-    result = cursor.fetchone()
-    cursor.close()
-    if result:
-        return {
-            'user_id': result[0],
-            'username': result[1],
-            'start_date': result[2].date(),
-            'end_date': result[3].date()
-        }
+# Get user profile
+def get_user_profile(conn, user_id):
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT username, start_date, end_date
+        FROM subscriptions
+        WHERE user_id = %s
+        """,
+        (user_id,)
+    )
+    profile = cursor.fetchone()
+    if profile:
+        return f"Username: @{profile[0]}\nStart Date: {profile[1]}\nEnd Date: {profile[2]}"
     else:
         return None
 
-def get_all_data(connection):
-    cursor = connection.cursor()
-    cursor.execute("""
-        SELECT message FROM logs;
-    """)
-    result = cursor.fetchall()
-    cursor.close()
-    return '\n\n'.join([row[0] for row in result])
+# Get expiring users
+def get_expiring_users(conn):
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT username, end_date
+        FROM subscriptions
+        WHERE end_date = current_date
+        """
+    )
+    expiring_users = cursor.fetchall()
+    return expiring_users
 
+# Insert log
+def insert_log(conn, user_id, message):
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        INSERT INTO logs (user_id, message)
+        VALUES (%s, %s)
+        """,
+        (user_id, message)
+    )
+    conn.commit()
 
+# Set up the bot
+def main():
+    updater = Updater(bot_token, use_context=True)
+    dispatcher = updater.dispatcher
 
-def get_expiring_subscriptions(connection):
-    cursor = connection.cursor()
-    current_date = datetime.datetime.now().strftime("%Y-%m-%d")
-    cursor.execute("""
-        SELECT user_id FROM logs WHERE DATE_TRUNC('day', message::timestamp) = DATE %s + INTERVAL '1 DAY';
-    """, (current_date,))
-    result = cursor.fetchall()
-    cursor.close()
-    return [row[0] for row in result]
+    start_handler = CommandHandler('start', start_command)
+    dispatcher.add_handler(start_handler)
 
-def handle_message(update):
-    message = update['message']
-    if 'text' in message:
-        text = message['text']
-        if text == '/expiring':
-            expiring_subscriptions = get_expiring_subscriptions(connection)
-            response_text = "Subscriptions expiring today:\n"
-            for user_id in expiring_subscriptions:
-                response_text += f"- User ID: {user_id}\n"
-            send_message(response_text)
-        elif text == '/profile':
-            user_id = message['from']['id']
-            user_profile = get_user_profile(connection, user_id)
-            if user_profile:
-                response_text = f"User Profile:\n- User ID: {user_profile['user_id']}\n- Username: {user_profile['username']}\n- Subscription Start: {user_profile['start_date']}\n- Valid Till: {user_profile['end_date']}"
-            else:
-                response_text = "User profile not found."
-            send_message(response_text)
-        elif text.startswith('THANKS FOR YOUR SUBSCRIPTION'):
-            lines = text.split('\n')
-            user_id = lines[1].split(': ')[1]
-            username = lines[3].split(': ')[1]
-            start_date = lines[5].split(': ')[1]
-            end_date = lines[7].split(': ')[1]
-            print(f"User ID: {user_id}")
-            print(f"Username: {username}")
-            print(f"Start Date: {start_date}")
-            print(f"End Date: {end_date}")
-            save_subscription_details(connection, user_id, username, start_date, end_date)
+    paid_handler = CommandHandler('paid', paid_command)
+    dispatcher.add_handler(paid_handler)
 
+    profile_handler = CommandHandler('profile', profile_command)
+    dispatcher.add_handler(profile_handler)
 
+    expiring_handler = CommandHandler('expiring', expiring_command)
+    dispatcher.add_handler(expiring_handler)
+
+    message_handler = MessageHandler(Filters.text & ~Filters.command, message_handler)
+    dispatcher.add_handler(message_handler)
+
+    updater.start_polling()
+    updater.idle()
 
 if __name__ == '__main__':
     main()
