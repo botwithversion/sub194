@@ -29,6 +29,10 @@ from telegram import ParseMode
 
 # ...
 
+from telegram import ParseMode
+
+# ...
+
 def paid_command(update: Update, context):
     message = update.message
     user_id = message.reply_to_message.from_user.id
@@ -73,12 +77,13 @@ def paid_command(update: Update, context):
     context.job_queue.run_once(
         delete_log_message,
         when=datetime.datetime.now() + datetime.timedelta(hours=24),
-        context=log_message.message_id
+        context={"chat_id": log_group_id, "message_id": log_message.message_id}
     )
 
 def delete_log_message(context):
-    log_message_id = context.job.context
-    context.bot.delete_message(chat_id=log_group_id, message_id=log_message_id)
+    chat_id = context.job.context["chat_id"]
+    message_id = context.job.context["message_id"]
+    context.bot.delete_message(chat_id=chat_id, message_id=message_id)
 
 # Delete user logs
 def delete_user_logs(connection, user_id):
