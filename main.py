@@ -186,39 +186,8 @@ def create_logs_table(connection):
     connection.commit()
     cursor.close()
 
-import re
 
-def handle_message(update):
-    message = update['message']
-    if 'text' in message:
-        text = message['text']
-        if text == '/expiring':
-            expiring_subscriptions = get_expiring_subscriptions(connection)
-            response_text = "Subscriptions expiring today:\n"
-            for user_id in expiring_subscriptions:
-                response_text += f"- User ID: {user_id}\n"
-            send_message(response_text)
-        elif text == '/profile':
-            user_id = message['from']['id']
-            user_profile = get_user_profile(connection, user_id)
-            if user_profile:
-                response_text = f"User Profile:\n- User ID: {user_profile['user_id']}\n- Username: {user_profile['username']}\n- Subscription Start: {user_profile['start_date']}\n- Valid Till: {user_profile['end_date']}"
-            else:
-                response_text = "User profile not found."
-            send_message(response_text)
-        elif text.startswith('THANKS FOR YOUR SUBSCRIPTION'):
-            pattern = r"User ID: (\d+)\n\nUsername: @(\w+)\n\nAmount: \d+ USD\nSubscription Start: (\d{4}-\d{2}-\d{2})\nValid Till: (\d{4}-\d{2}-\d{2})"
-            match = re.search(pattern, text, re.MULTILINE)
-            if match:
-                user_id = match.group(1)
-                username = match.group(2)
-                start_date = match.group(3)
-                end_date = match.group(4)
-                print(f"User ID: {user_id}")
-                print(f"Username: {username}")
-                print(f"Start Date: {start_date}")
-                print(f"End Date: {end_date}")
-                save_subscription_details(connection, user_id, username, start_date, end_date)
+
 
 def insert_log(connection, user_id, message):
     cursor = connection.cursor()
@@ -266,6 +235,37 @@ def get_expiring_subscriptions(connection):
     result = cursor.fetchall()
     cursor.close()
     return [row[0] for row in result]
+
+def handle_message(update):
+    message = update['message']
+    if 'text' in message:
+        text = message['text']
+        if text == '/expiring':
+            expiring_subscriptions = get_expiring_subscriptions(connection)
+            response_text = "Subscriptions expiring today:\n"
+            for user_id in expiring_subscriptions:
+                response_text += f"- User ID: {user_id}\n"
+            send_message(response_text)
+        elif text == '/profile':
+            user_id = message['from']['id']
+            user_profile = get_user_profile(connection, user_id)
+            if user_profile:
+                response_text = f"User Profile:\n- User ID: {user_profile['user_id']}\n- Username: {user_profile['username']}\n- Subscription Start: {user_profile['start_date']}\n- Valid Till: {user_profile['end_date']}"
+            else:
+                response_text = "User profile not found."
+            send_message(response_text)
+        elif text.startswith('THANKS FOR YOUR SUBSCRIPTION'):
+            lines = text.split('\n')
+            user_id = lines[1].split(': ')[1]
+            username = lines[3].split(': ')[1]
+            start_date = lines[5].split(': ')[1]
+            end_date = lines[7].split(': ')[1]
+            print(f"User ID: {user_id}")
+            print(f"Username: {username}")
+            print(f"Start Date: {start_date}")
+            print(f"End Date: {end_date}")
+            save_subscription_details(connection, user_id, username, start_date, end_date)
+
 
 
 if __name__ == '__main__':
