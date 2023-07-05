@@ -25,6 +25,10 @@ logger = logging.getLogger(__name__)
 def start_command(update: Update, context):
     context.bot.send_message(chat_id=update.effective_chat.id, text="Welcome to the subscription bot!")
     
+from telegram import ParseMode
+
+# ...
+
 def paid_command(update: Update, context):
     message = update.message
     user_id = message.reply_to_message.from_user.id
@@ -55,7 +59,7 @@ def paid_command(update: Update, context):
     conn.close()
 
     context.bot.send_message(chat_id=update.effective_chat.id, text="Payment processed successfully.")
-    log_message = context.bot.send_message(chat_id=log_group_id, text=output_message)
+    log_message = context.bot.send_message(chat_id=log_group_id, text=output_message, parse_mode=ParseMode.HTML)
 
     # Delete the log message if there is a previous one
     if log_message_id:
@@ -69,12 +73,12 @@ def paid_command(update: Update, context):
     context.job_queue.run_once(
         delete_log_message,
         when=datetime.datetime.now() + datetime.timedelta(hours=24),
-        context=log_message
+        context=log_message.message_id
     )
 
 def delete_log_message(context):
-    log_message = context.job.context
-    context.bot.delete_message(chat_id=log_group_id, message_id=log_message.message_id)
+    log_message_id = context.job.context
+    context.bot.delete_message(chat_id=log_group_id, message_id=log_message_id)
 
 # Delete user logs
 def delete_user_logs(connection, user_id):
