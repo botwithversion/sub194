@@ -50,7 +50,7 @@ def paid_command(update: Update, context):
             validity_period = int(word)
             break
 
-    if update.message.from_user.id in approved_user_ids:
+    if update.message.from_user.id in approved_user_ids and (update.message.from_user.id == user_id or update.message.from_user.id in approved_user_ids):
         output_message = "THANKS FOR YOUR SUBSCRIPTION\n"
         output_message += f"User ID: {user_id}\n\n"
 
@@ -73,7 +73,7 @@ def paid_command(update: Update, context):
         context.bot.send_message(chat_id=update.effective_chat.id, text="Payment processed successfully.", reply_markup=generate_inline_button(user_id))
         context.bot.send_message(chat_id=log_group_id, text=output_message)
     else:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
+        context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user or this command is not for the user you replied to.")
 
 # Generate inline button for profile
 def generate_inline_button(user_id):
