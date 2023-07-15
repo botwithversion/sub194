@@ -71,6 +71,7 @@ def paid_command(update: Update, context):
         conn.close()
 
         context.bot.send_message(chat_id=update.effective_chat.id, text="Payment processed successfully.", reply_markup=generate_inline_button(user_id))
+        context.bot.send_message(chat_id=log_group_id, text=output_message)
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
@@ -158,7 +159,7 @@ def main():
     dispatcher.add_handler(CommandHandler("check_data", check_data_command))
     dispatcher.add_handler(CommandHandler("subscription_expired", subscription_expired_command))
     dispatcher.add_handler(CommandHandler("clearall", clear_all_command))
-    
+
     # Register callback query handler
     dispatcher.add_handler(CallbackQueryHandler(callback_query_handler))
 
@@ -229,16 +230,19 @@ def get_expired_subscriptions(connection):
 
 def callback_query_handler(update: Update, context):
     query = update.callback_query
+    query.answer()
     data = query.data
-    user_id = int(data.split("|")[1])
-    conn = psycopg2.connect(db_url)
-    profile = get_user_profile(conn, user_id)
-    conn.close()
 
-    if profile:
-        query.edit_message_text(text=profile[profile.find("\n\n")+2:])
-    else:
-        query.edit_message_text(text="No profile data found for the user.")
+    if data.startswith('profile|'):
+        user_id = int(data.split("|")[1])
+        conn = psycopg2.connect(db_url)
+        profile = get_user_profile(conn, user_id)
+        conn.close()
+
+        if profile:
+            query.edit_message_text(text=profile[profile.find("\n\n")+2:])
+        else:
+            query.edit_message_text(text="No profile data found for the user.")
 
 if __name__ == '__main__':
     main()
