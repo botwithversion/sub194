@@ -70,11 +70,11 @@ def paid_command(update: Update, context):
         insert_log(conn, user_id, output_message)
         conn.close()
 
-        # Send payment processed message
+        # Send payment processed message with inline button
         payment_message = context.bot.send_message(chat_id=update.effective_chat.id, text="Payment processed successfully.")
         show_profile_button = InlineKeyboardButton("Show Profile", callback_data=f"profile_{user_id}")
         keyboard = InlineKeyboardMarkup([[show_profile_button]])
-        context.bot.send_message(chat_id=update.effective_chat.id, text=output_message, reply_markup=keyboard)
+        payment_message.reply_markup = keyboard
 
         # Send log message to log group
         context.bot.send_message(chat_id=log_group_id, text=output_message)
@@ -149,15 +149,20 @@ def error(update: Update, context):
 # Callback query handler
 def callback_query_handler(update: Update, context):
     query = update.callback_query
-    user_id = query.data.split("_")[1]
-    conn = psycopg2.connect(db_url)
-    profile = get_user_profile(conn, user_id)
-    conn.close()
+    query.answer()
 
-    if profile:
-        query.edit_message_text(text=profile[profile.find("\n\n")+2:])
-    else:
-        query.edit_message_text(text="No profile data found for the user.")
+    query_data = query.data
+    if query_data.startswith("profile_"):
+        user_id = int(query_data.split("_")[1])
+
+        conn = psycopg2.connect(db_url)
+        profile = get_user_profile(conn, user_id)
+        conn.close()
+
+        if profile:
+            query.edit_message_text(text=profile[profile.find("\n\n")+2:])
+        else:
+            query.edit_message_text(text="No profile data found for the user.")
 
 def main():
     # Create the Telegram Updater and pass in the bot's token
