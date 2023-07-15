@@ -2,8 +2,8 @@ import os
 import logging
 import datetime
 import psycopg2
-from telegram import Bot, Update
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Updater, CommandHandler
 
 # Telegram bot token
 bot_token = os.environ.get('BOT_TOKEN')
@@ -71,7 +71,17 @@ def paid_command(update: Update, context):
         conn.close()
 
         context.bot.send_message(chat_id=update.effective_chat.id, text="Payment processed successfully.")
-        context.bot.send_message(chat_id=log_group_id, text=output_message)
+
+        # Create the "Show Profile" inline button
+        show_profile_button = InlineKeyboardButton("Show Profile", callback_data=f"profile_{user_id}")
+        inline_keyboard = InlineKeyboardMarkup([[show_profile_button]])
+
+        message = context.bot.send_message(chat_id=update.effective_chat.id, text=output_message, reply_markup=inline_keyboard)
+
+        # Delete the /paid command message and the reply message
+        context.bot.delete_message(chat_id=update.effective_chat.id, message_id=update.message.message_id)
+        context.bot.delete_message(chat_id=update.effective_chat.id, message_id=update.message.reply_to_message.message_id)
+
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
 
@@ -218,10 +228,6 @@ def get_expired_subscriptions(connection):
     cursor.close()
 
     return result
-
-
-
-
 
 if __name__ == '__main__':
     main()
