@@ -3,7 +3,7 @@ import logging
 import datetime
 import psycopg2
 from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Updater, CommandHandler
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackQueryHandler
 
 # Telegram bot token
 bot_token = os.environ.get('BOT_TOKEN')
@@ -70,17 +70,14 @@ def paid_command(update: Update, context):
         insert_log(conn, user_id, output_message)
         conn.close()
 
-        context.bot.send_message(chat_id=update.effective_chat.id, text="Payment processed successfully.")
-
-        # Create the "Show Profile" inline button
+        # Send payment processed message
+        payment_message = context.bot.send_message(chat_id=update.effective_chat.id, text="Payment processed successfully.")
         show_profile_button = InlineKeyboardButton("Show Profile", callback_data=f"profile_{user_id}")
-        inline_keyboard = InlineKeyboardMarkup([[show_profile_button]])
+        keyboard = InlineKeyboardMarkup([[show_profile_button]])
+        context.bot.send_message(chat_id=update.effective_chat.id, text=output_message, reply_markup=keyboard)
 
-        message = context.bot.send_message(chat_id=update.effective_chat.id, text=output_message, reply_markup=inline_keyboard)
-
-        # Delete the /paid command message and the reply message
-        context.bot.delete_message(chat_id=update.effective_chat.id, message_id=update.message.message_id)
-        context.bot.delete_message(chat_id=update.effective_chat.id, message_id=update.message.reply_to_message.message_id)
+        # Send log message to log group
+        context.bot.send_message(chat_id=log_group_id, text=output_message)
 
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
@@ -149,6 +146,19 @@ def clear_all_command(update: Update, context):
 def error(update: Update, context):
     logger.warning(f"Update {update} caused error {context.error}")
 
+# Callback query handler
+def callback_query_handler(update: Update, context):
+    query = update.callback_query
+    user_id = query.data.split("_")[1]
+    conn = psycopg2.connect(db_url)
+    profile = get_user_profile(conn, user_id)
+    conn.close()
+
+    if profile:
+        query.edit_message_text(text=profile[profile.find("\n\n")+2:])
+    else:
+        query.edit_message_text(text="No profile data found for the user.")
+
 def main():
     # Create the Telegram Updater and pass in the bot's token
     updater = Updater(bot_token)
@@ -166,6 +176,9 @@ def main():
 
     # Register error handler
     dispatcher.add_error_handler(error)
+
+    # Register callback query handler
+    dispatcher.add_handler(CallbackQueryHandler(callback_query_handler))
 
     # Connect to the database
     conn = psycopg2.connect(db_url)
