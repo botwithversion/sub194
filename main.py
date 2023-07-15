@@ -3,7 +3,8 @@ import logging
 import datetime
 import psycopg2
 from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackQueryHandler
+
 
 # Telegram bot token
 bot_token = os.environ.get('BOT_TOKEN')
