@@ -4,6 +4,7 @@ import datetime
 import psycopg2
 from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler
+from telegram import ChatPermissions
 
 # Telegram bot token
 bot_token = os.environ.get('BOT_TOKEN')
@@ -81,7 +82,8 @@ def generate_inline_button(user_id):
     keyboard = InlineKeyboardMarkup([[button]])
     return keyboard
 
-# /msg command handler
+
+
 def msg_command(update: Update, context):
     if update.message.from_user.id in approved_user_ids:
         # Get the message text after the "/msg" command
@@ -90,10 +92,11 @@ def msg_command(update: Update, context):
         # Send the message in the same chat
         message = context.bot.send_message(chat_id=update.effective_chat.id, text=message_text)
 
-        # Delete the approved user's message if the bot has delete permissions
-        bot_user = context.bot.get_me()
-        if bot_user.can_delete_messages:
+        # Check if the bot has the necessary permissions to delete messages
+        chat_permissions = context.bot.get_chat_permissions(update.effective_chat.id)
+        if chat_permissions.can_delete_messages:
             try:
+                # Delete the approved user's message
                 context.bot.delete_message(chat_id=update.effective_chat.id, message_id=update.message.message_id)
             except Exception as e:
                 # Handle any errors that may occur during message deletion
