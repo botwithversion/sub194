@@ -81,6 +81,17 @@ def generate_inline_button(user_id):
     keyboard = InlineKeyboardMarkup([[button]])
     return keyboard
 
+# /msg command handler
+def msg_command(update: Update, context):
+    if update.message.from_user.id in approved_user_ids:
+        # Get the message text after the "/msg" command
+        message_text = update.message.text.replace("/msg", "").strip()
+
+        # Send the message in the same chat
+        context.bot.send_message(chat_id=update.effective_chat.id, text=message_text)
+    else:
+        context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
+
 # Profile command handler
 def profile_command(update: Update, context):
     replied_user_id = update.message.reply_to_message.from_user.id
@@ -155,6 +166,7 @@ def main():
     # Register command handlers
     dispatcher.add_handler(CommandHandler("start", start_command))
     dispatcher.add_handler(CommandHandler("paid", paid_command))
+    dispatcher.add_handler(CommandHandler("msg", msg_command)) 
     dispatcher.add_handler(CommandHandler("profile", profile_command))
     dispatcher.add_handler(CommandHandler("check_data", check_data_command))
     dispatcher.add_handler(CommandHandler("subscription_expired", subscription_expired_command))
