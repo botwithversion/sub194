@@ -82,7 +82,6 @@ def generate_inline_button(user_id):
     return keyboard
 
 # /msg command handler
-# /msg command handler
 def msg_command(update: Update, context):
     if update.message.from_user.id in approved_user_ids:
         # Get the message text after the "/msg" command
@@ -92,7 +91,8 @@ def msg_command(update: Update, context):
         message = context.bot.send_message(chat_id=update.effective_chat.id, text=message_text)
 
         # Delete the approved user's message if the bot has delete permissions
-        if context.bot_user.can_delete_messages:
+        bot_user = context.bot.get_me()
+        if bot_user.can_delete_messages:
             try:
                 context.bot.delete_message(chat_id=update.effective_chat.id, message_id=update.message.message_id)
             except Exception as e:
