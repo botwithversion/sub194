@@ -92,9 +92,9 @@ def msg_command(update: Update, context):
         # Send the message in the same chat
         message = context.bot.send_message(chat_id=update.effective_chat.id, text=message_text)
 
-        # Check if the bot has the necessary permissions to delete messages
-        chat_permissions = context.bot.get_chat_permissions(update.effective_chat.id)
-        if chat_permissions.can_delete_messages:
+        # Check if the bot is an administrator in the chat (which allows it to delete messages)
+        bot_member = context.bot.get_chat_member(update.effective_chat.id, context.bot.id)
+        if bot_member.status == 'administrator':
             try:
                 # Delete the approved user's message
                 context.bot.delete_message(chat_id=update.effective_chat.id, message_id=update.message.message_id)
