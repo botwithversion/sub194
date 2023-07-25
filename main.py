@@ -231,10 +231,18 @@ def create_logs_table(connection):
 
 def insert_log(connection, user_id, message):
     cursor = connection.cursor()
+    
+    # Remove previous subscription data for the user
+    cursor.execute("""
+        DELETE FROM logs WHERE user_id = %s;
+    """, (user_id,))
+    
+    # Insert the new subscription data
     cursor.execute("""
         INSERT INTO logs (user_id, message)
         VALUES (%s, %s);
     """, (user_id, message))
+    
     connection.commit()
     cursor.close()
 
