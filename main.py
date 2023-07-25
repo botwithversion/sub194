@@ -140,17 +140,16 @@ def subscription_expired_command(update: Update, context):
     if update.message.from_user.id in approved_user_ids:
         conn = psycopg2.connect(db_url)
         expired_subscriptions = get_expired_subscriptions(conn)
-        
+
         if expired_subscriptions:
             current_date = datetime.datetime.now().strftime("%Y-%m-%d")
             expiring_users = []
 
             for user_id, message in expired_subscriptions:
-                if 'Valid Till: ' + current_date in message:
-                    # Check if the user has already paid for the subscription on the current day
-                    user_profile = get_user_profile(conn, user_id)
-                    if 'Valid Till: ' + current_date not in user_profile:
-                        expiring_users.append((user_id, message))
+                # Check if the user has already paid for the subscription on the current day
+                user_profile = get_user_profile(conn, user_id)
+                if 'Valid Till: ' + current_date in message and 'Valid Till: ' + current_date not in user_profile:
+                    expiring_users.append((user_id, message))
 
             if expiring_users:
                 for user_id, message in expiring_users:
@@ -159,7 +158,7 @@ def subscription_expired_command(update: Update, context):
                 context.bot.send_message(chat_id=update.effective_chat.id, text="No subscriptions are expiring today.")
         else:
             context.bot.send_message(chat_id=update.effective_chat.id, text="No expired subscriptions found.")
-        
+
         conn.close()  # Close the database connection after processing
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
