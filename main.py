@@ -153,7 +153,9 @@ def subscription_expired_command(update: Update, context):
 
             if expiring_users:
                 for user_id, message in expiring_users:
-                    context.bot.send_message(chat_id=update.effective_chat.id, text=message)
+                    # Check if the user has already paid for the current day
+                    if not get_user_profile(conn, user_id).endswith(current_date):
+                        context.bot.send_message(chat_id=update.effective_chat.id, text=message)
             else:
                 context.bot.send_message(chat_id=update.effective_chat.id, text="No subscriptions are expiring today.")
         else:
