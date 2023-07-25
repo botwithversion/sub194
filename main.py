@@ -196,7 +196,7 @@ def main():
     dispatcher.add_handler(CommandHandler("msg", msg_command)) 
     dispatcher.add_handler(CommandHandler("profile", profile_command))
     dispatcher.add_handler(CommandHandler("check_data", check_data_command))
-    dispatcher.add_handler(CommandHandler("subscription_expired", subscription_expired_command))
+    dispatcher.add_handler(CommandHandler("expired", subscription_expired_command))
     dispatcher.add_handler(CommandHandler("clearall", clear_all_command))
 
     # Register callback query handler
