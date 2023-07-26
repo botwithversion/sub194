@@ -267,7 +267,7 @@ def get_all_data(connection):
     result = cursor.fetchall()
     cursor.close()
     return '\n\n'.join([row[0] for row in result])
-
+    
 def get_expired_subscriptions(connection):
     cursor = connection.cursor()
     current_date = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -281,7 +281,15 @@ def get_expired_subscriptions(connection):
     result = cursor.fetchall()
     cursor.close()
 
-    return result
+    # Check for subscriptions with only the expiration date (no additional text after)
+    subscriptions_with_date_only = []
+    for user_id, message in result:
+        user_profile = get_user_profile(connection, user_id)
+        if 'Valid Till: ' + current_date in message and 'Valid Till: ' + current_date not in user_profile:
+            subscriptions_with_date_only.append((user_id, message))
+
+    return subscriptions_with_date_only
+
 
 
 def callback_query_handler(update: Update, context):
