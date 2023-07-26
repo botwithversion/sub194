@@ -140,31 +140,26 @@ def subscription_expired_command(update: Update, context):
     if update.message.from_user.id in approved_user_ids:
         conn = psycopg2.connect(db_url)
         expired_subscriptions = get_expired_subscriptions(conn)
-
+        
         if expired_subscriptions:
             current_date = datetime.datetime.now().strftime("%Y-%m-%d")
             expiring_users = []
 
             for user_id, message in expired_subscriptions:
-                # Check if the user has already paid for the subscription on the current day
-                user_profile = get_user_profile(conn, user_id)
-                if 'Valid Till: ' + current_date in message and 'Valid Till: ' + current_date not in user_profile:
-                    expiring_users.append((user_id, message))
+                if 'Valid Till: ' + current_date in message:
+                    # Check if the user has already paid for the subscription on the current day
+                    user_profile = get_user_profile(conn, user_id)
+                    if 'Valid Till: ' + current_date not in user_profile:
+                        expiring_users.append((user_id, message))
 
             if expiring_users:
                 for user_id, message in expiring_users:
-                    # Check if the user has already paid for the current day
-                    if not get_user_profile(conn, user_id).endswith(current_date):
-                        context.bot.send_message(chat_id=update.effective_chat.id, text=message)
-
-                        # Update the user's profile data in the database
-                        updated_profile = get_user_profile(conn, user_id) + f"\nValid Till: {current_date}"
-                        insert_log(conn, user_id, updated_profile)
+                    context.bot.send_message(chat_id=update.effective_chat.id, text=message)
             else:
                 context.bot.send_message(chat_id=update.effective_chat.id, text="No subscriptions are expiring today.")
         else:
             context.bot.send_message(chat_id=update.effective_chat.id, text="No expired subscriptions found.")
-
+        
         conn.close()  # Close the database connection after processing
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
@@ -200,7 +195,7 @@ def main():
     dispatcher.add_handler(CommandHandler("msg", msg_command)) 
     dispatcher.add_handler(CommandHandler("profile", profile_command))
     dispatcher.add_handler(CommandHandler("check_data", check_data_command))
-    dispatcher.add_handler(CommandHandler("expired", subscription_expired_command))
+    dispatcher.add_handler(CommandHandler("subscription_expired", subscription_expired_command))
     dispatcher.add_handler(CommandHandler("clearall", clear_all_command))
 
     # Register callback query handler
@@ -233,6 +228,18 @@ def create_logs_table(connection):
     connection.commit()
     cursor.close()
 
+def create_logs_table(connection):
+    cursor = connection.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS logs (
+            id SERIAL PRIMARY KEY,
+            user_id BIGINT,
+            message TEXT
+        );
+    """)
+    connection.commit()
+    cursor.close()
+
 def insert_log(connection, user_id, message):
     cursor = connection.cursor()
     
@@ -240,7 +247,6 @@ def insert_log(connection, user_id, message):
     cursor.execute("""
         DELETE FROM logs WHERE user_id = %s;
     """, (user_id,))
-    
     # Insert the new subscription data
     cursor.execute("""
         INSERT INTO logs (user_id, message)
@@ -267,30 +273,17 @@ def get_all_data(connection):
     result = cursor.fetchall()
     cursor.close()
     return '\n\n'.join([row[0] for row in result])
-    
+
 def get_expired_subscriptions(connection):
     cursor = connection.cursor()
     current_date = datetime.datetime.now().strftime("%Y-%m-%d")
-
-    # Get subscriptions expiring on the current_date only
     cursor.execute("""
-        SELECT user_id, message FROM logs
-        WHERE message LIKE %s AND message NOT LIKE %s;
-    """, ('%Valid Till: ' + current_date + '%', '%Valid Till: ' + current_date + ' %',))
-
+        SELECT user_id, message FROM logs WHERE message LIKE %s;
+    """, ('%Valid Till: ' + current_date + '%',))
     result = cursor.fetchall()
     cursor.close()
 
-    # Check for subscriptions with only the expiration date (no additional text after)
-    subscriptions_with_date_only = []
-    for user_id, message in result:
-        user_profile = get_user_profile(connection, user_id)
-        if 'Valid Till: ' + current_date in message and 'Valid Till: ' + current_date not in user_profile:
-            subscriptions_with_date_only.append((user_id, message))
-
-    return subscriptions_with_date_only
-
-
+    return result
 
 def callback_query_handler(update: Update, context):
     query = update.callback_query
