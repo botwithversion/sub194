@@ -271,13 +271,18 @@ def get_all_data(connection):
 def get_expired_subscriptions(connection):
     cursor = connection.cursor()
     current_date = datetime.datetime.now().strftime("%Y-%m-%d")
+
+    # Get subscriptions expiring on the current_date only
     cursor.execute("""
-        SELECT user_id, message FROM logs WHERE message LIKE %s;
-    """, ('%Valid Till: ' + current_date + '%',))
+        SELECT user_id, message FROM logs
+        WHERE message LIKE %s AND message NOT LIKE %s;
+    """, ('%Valid Till: ' + current_date + '%', '%Valid Till: ' + current_date + ' %',))
+
     result = cursor.fetchall()
     cursor.close()
 
     return result
+
 
 def callback_query_handler(update: Update, context):
     query = update.callback_query
