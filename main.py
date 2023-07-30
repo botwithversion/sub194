@@ -73,8 +73,25 @@ def paid_command(update: Update, context):
 
         context.bot.send_message(chat_id=update.effective_chat.id, text="Payment processed successfully.", reply_markup=generate_inline_button(user_id))
         context.bot.send_message(chat_id=log_group_id, text=output_message)
+
+        # Update the log with the new expiration date
+        conn = psycopg2.connect(db_url)
+        update_subscription_expiry(conn, user_id, expire_date)
+        conn.close()
+
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not an approved user.")
+
+
+def update_subscription_expiry(connection, user_id, expire_date):
+    cursor = connection.cursor()
+    cursor.execute("""
+        UPDATE logs
+        SET message = %s
+        WHERE user_id = %s;
+    """, (f"Valid Till: {expire_date}", user_id))
+    connection.commit()
+    cursor.close()
 
 # Generate inline button for profile
 def generate_inline_button(user_id):
@@ -146,7 +163,7 @@ def subscription_expired_command(update: Update, context):
             expiring_users = []
 
             for user_id, message in expired_subscriptions:
-                # Check if the user has already paid for the subscription on the current day
+                # Check if the user's subscription expires on the current date
                 user_profile = get_user_profile(conn, user_id)
                 if 'Valid Till: ' + current_date in message and 'Valid Till: ' + current_date not in user_profile:
                     expiring_users.append((user_id, message))
