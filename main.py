@@ -292,6 +292,7 @@ def get_expired_subscriptions(connection):
 
     return result
 
+# Inline button callback query handler
 def callback_query_handler(update: Update, context):
     query = update.callback_query
     query.answer()
@@ -307,6 +308,7 @@ def callback_query_handler(update: Update, context):
             query.edit_message_text(text=profile[profile.find("\n\n")+2:])
         else:
             query.edit_message_text(text="No profile data found for the user.")
+
 
 if __name__ == '__main__':
     main()
