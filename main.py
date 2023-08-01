@@ -292,7 +292,7 @@ def get_expired_subscriptions(connection):
 
     return result
 
-# Inline button callback query handler
+
 def callback_query_handler(update: Update, context):
     query = update.callback_query
     query.answer()
