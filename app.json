@@ -5,19 +5,19 @@
   "keywords": ["telegram", "bot"],
   "env": {
     "API_ID": {
-      "description": "Your Telegram API ID",
+      "description": "1747534",
       "required": true
     },
     "API_HASH": {
-      "description": "Your Telegram API hash",
+      "description": "5a2684512006853f2e48aca9652d83ea",
       "required": true
     },
     "BOT_TOKEN": {
-      "description": "Your Telegram bot token",
+      "description": "6503539603:AAEGjnhPjU6FZ1sKdQf8LOINXjtDQRUSC-Q",
       "required": true
     },
     "DATABASE_URL": {
-      "description": "Your PostgreSQL database URL",
+      "description": "postgres://jptbhnizdvtvhi:dd56b2156aa1d289457cb430549082156575bd14e247de26d98b0178106abcf6@ec2-3-92-151-217.compute-1.amazonaws.com:5432/d4laqq7ovmhokv",
       "required": true
     }
   }
